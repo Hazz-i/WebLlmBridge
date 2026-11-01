@@ -16,7 +16,7 @@ let urlIndex = 0;
 // manifest.json content_scripts + host_permissions) when integrating another AI.
 let latestClaudeArtifact = null;
 
-const PROVIDER_URLS = ["https://chat.deepseek.com/*", "https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "https://www.kimi.ai/*", "https://kimi.ai/*", "https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://arena.ai/*", "https://www.meta.ai/*", "https://meta.ai/*", "https://ptero.pro/*", "https://grok.com/*", "https://chat.mistral.ai/*"];
+const PROVIDER_URLS = ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*", "https://gemini.google.com/*"];
 
 const RECONNECT_MIN = 1000;
 const RECONNECT_MAX = 5000;

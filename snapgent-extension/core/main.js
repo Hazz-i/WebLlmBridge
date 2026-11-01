@@ -83,18 +83,9 @@
   // AI chat sites WebLlmBridge works on. Keep in sync with manifest.json
   // content_scripts and background.js PROVIDER_URLS when adding a provider.
   const AI_SITES = [
-    // { name: "DeepSeek", url: "https://chat.deepseek.com/" }, // hidden from UI bar (disabled, not deleted)
     { name: "ChatGPT", url: "https://chatgpt.com/" },
     { name: "Claude", url: "https://claude.ai/new" },
     { name: "Gemini", url: "https://gemini.google.com/app" },
-    { name: "Kimi", url: "https://www.kimi.ai/" },
-    { name: "GLM", url: "https://chat.z.ai/" },
-    { name: "Qwen", url: "https://chat.qwen.ai/" },
-    { name: "Arena", url: "https://arena.ai/text/direct" },
-    { name: "Meta AI", url: "https://www.meta.ai/" },
-    { name: "Ptero", url: "https://ptero.pro/" },
-    { name: "Grok", url: "https://grok.com/" },
-    { name: "Mistral", url: "https://chat.mistral.ai/code" },
   ];
   const TARGET_STORAGE_KEY = "zsSelectedMcpTarget";
 
