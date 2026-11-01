@@ -1748,35 +1748,16 @@
   async function loadWorkspaceSkills() {
     workspaceSkills = [];
     try {
-      const tools = activeTools();
-      const findTool = tools.find((t) => bareToolName(t.name) === "find_files");
-      const readTool = tools.find((t) => bareToolName(t.name) === "read_file");
-      if (!findTool || !readTool) return;
-      const found = await bg({ type: "call_tool", name: findTool.name,
-        arguments: { path: ".snapgent/skills", pattern: "**/SKILL.md" }, timeout: 5000 });
-      if (!found || !found.ok || !found.text) return;
-      let paths;
-      try { paths = JSON.parse(found.text); } catch { return; }
-      if (!Array.isArray(paths)) return;
-      const out = [];
-      for (const p of paths.slice(0, 30)) {
-        if (typeof p !== "string") continue;
-        const r = await bg({ type: "call_tool", name: readTool.name,
-          arguments: { path: p }, timeout: 5000 });
-        if (!r || !r.ok || !r.text) continue;
-        const fm = r.text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---/);
-        if (!fm) continue;
-        const clean = (v) => (v || "").trim().replace(/^["']|["']$/g, "").replace(/\s+/g, " ");
-        const name = clean((fm[1].match(/^name:\s*(.+)$/m) || [])[1]);
-        const description = clean((fm[1].match(/^description:\s*(.+)$/m) || [])[1]).slice(0, 200);
-        if (!name || !description) continue;
-        out.push({ name, description, path: p });
+      // 1. Fetch real Hermes skills loaded from /home/wahid/.hermes/skills/
+      const resp = await bg({ type: "list_skills" });
+      if (resp && resp.skills && Array.isArray(resp.skills) && resp.skills.length > 0) {
+        allSkills = resp.skills;
+        workspaceSkills = allSkills.filter((s) => isSkillEnabled(s.name));
+        diag("skills.loaded", { count: allSkills.length, enabled: workspaceSkills.length });
+        return;
       }
-      allSkills = out;
-      workspaceSkills = out.filter((s) => isSkillEnabled(s.name));
-      diag("skills.loaded", { count: out.length, enabled: workspaceSkills.length });
     } catch (error) {
-      log("Could not load workspace skills:", error);
+      log("Could not load Hermes skills from bridge:", error);
     }
   }
 
@@ -2800,7 +2781,7 @@
       // no overlay on the input - the composer stays fully usable for plain chat.
       root.innerHTML = `
         <div id="zs-bar">
-          <span class="zs-bridge-label">Hermes Bridge</span>
+          <span class="zs-bridge-label">Hermes Bridge <span class="zs-online-tag">online</span></span>
           <div class="zs-target-wrap" title="Choose MCP target">
             <select id="zs-target" aria-label="MCP target" hidden tabindex="-1">
               <option value="hermes">Hermes Agent</option>
@@ -3193,7 +3174,7 @@
         if (mode !== "list") { renderImport(); return; }
         const rows = allSkills.length
           ? allSkills.map((s) => `<label class="zs-mcp-row"><span class="zs-mcp-row-info"><span class="zs-mcp-row-name">${esc(s.name)}</span><span class="zs-mcp-row-meta">${esc(s.description)}</span></span><input type="checkbox" class="zs-mcp-check" data-name="${esc(s.name)}" ${isSkillEnabled(s.name) ? "checked" : ""}><span class="zs-mcp-toggle"></span></label>`).join("")
-          : `<div class="zs-mcp-pop-note">No skills found in .snapgent/skills/ (VS Code workspace only).</div>`;
+          : `<div class="zs-mcp-pop-note">No skills loaded from Hermes Agent yet. Ensure bridge is connected.</div>`;
         pop.innerHTML =
           `<div class="zs-mcp-pop-card" role="dialog" aria-label="Skills settings">` +
             `<div class="zs-mcp-pop-head"><span>Skills</span><button class="zs-mcp-pop-close" aria-label="Close">&#10005;</button></div>` +
@@ -3687,9 +3668,9 @@
       if (root.querySelector(".zs-banner.zs-stale")) return;
       const b = document.createElement("div");
       b.className = "zs-banner limit zs-stale";
-      b.innerHTML = `<div class="zs-banner-t">WebLlmBridge Diperbarui</div>
-        <div class="zs-banner-m">Ekstensi WebLlmBridge telah diperbarui. Refresh halaman ini untuk melanjutkan.</div>
-        <div class="zs-banner-acts"><button class="zs-banner-reload">Refresh Halaman</button></div>`;
+      b.innerHTML = `<div class="zs-banner-t">WebLlmBridge Updated</div>
+        <div class="zs-banner-m">The WebLlmBridge extension was updated. Reload this page to continue.</div>
+        <div class="zs-banner-acts"><button class="zs-banner-reload">Reload Page</button></div>`;
       b.querySelector(".zs-banner-reload").addEventListener("click", () => location.reload());
       root.appendChild(b);
       bridgeBannerEl = b;
@@ -3704,9 +3685,9 @@
       if (bridgeBannerEl) return; // already shown
       const b = document.createElement("div");
       b.className = "zs-banner limit";
-      b.innerHTML = `<div class="zs-banner-t">Koneksi Bridge Terputus</div>
-        <div class="zs-banner-m">Koneksi ke WebLlmBridge terputus. Pastikan service di server Linux aktif.</div>
-        <div class="zs-banner-acts"><button class="zs-banner-x">Tutup</button></div>`;
+      b.innerHTML = `<div class="zs-banner-t">WebLlmBridge Disconnected</div>
+        <div class="zs-banner-m">Connection to local bridge lost. Ensure bridge.py is running on Linux server.</div>
+        <div class="zs-banner-acts"><button class="zs-banner-x">Close</button></div>`;
       b.querySelector(".zs-banner-x").addEventListener("click", () => { b.remove(); if (bridgeBannerEl === b) bridgeBannerEl = null; });
       root.appendChild(b);
       bridgeBannerEl = b;

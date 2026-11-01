@@ -322,6 +322,28 @@ const ZSProvider = (() => {
   }
 
   function barMount() {
+    // 1. Prioritize mounting right beside the "Think" button in ChatGPT tools row
+    const thinkBtn = [...document.querySelectorAll("button")].find((b) => {
+      const t = (b.textContent || "").trim().toLowerCase();
+      const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+      const tid = (b.getAttribute("data-testid") || "").toLowerCase();
+      return t === "think" || aria.includes("think") || tid.includes("reasoning") || tid.includes("think");
+    });
+    if (thinkBtn && thinkBtn.parentElement) {
+      const bar = document.getElementById("zs-bar");
+      if (bar) bar.style.gridArea = "";
+      return { parent: thinkBtn.parentElement, before: thinkBtn.nextElementSibling, inside: true };
+    }
+
+    // 2. Fallback to tools strip with the attach (+) button
+    const attachBtn = document.querySelector('button[aria-label*="Attach" i], button[data-testid*="attach" i], [aria-label*="Upload" i]');
+    if (attachBtn && attachBtn.parentElement) {
+      const bar = document.getElementById("zs-bar");
+      if (bar) bar.style.gridArea = "";
+      return { parent: attachBtn.parentElement, before: null, inside: true };
+    }
+
+    // 3. Fallback to composer card surface
     const ed = getEditor();
     if (!ed) return null;
     const box = ed.closest("[class*='composer-surface']");
@@ -331,7 +353,6 @@ const ZSProvider = (() => {
       const bar = document.getElementById("zs-bar");
       if (bar && bar.style.gridArea !== area) bar.style.gridArea = area;
     }
-    // Skip our own bar if already mounted, otherwise we'd insert it before itself.
     let before = box.firstElementChild;
     if (before && before.id === "zs-bar") before = before.nextElementSibling;
     return { parent: box, before, inside: true };

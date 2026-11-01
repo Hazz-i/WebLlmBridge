@@ -36,6 +36,7 @@ let lastMessageAt = 0; // timestamp of the last frame received from the bridge
 let nextId = 1;
 const pending = new Map(); // id -> {resolve, timer}
 let toolsCache = [];
+let skillsCache = [];
 let mcpAlive = false;
 let serversCache = [];
 let bridgeVersion = null;
@@ -281,6 +282,7 @@ function handleBridgeMessage(msg) {
     bridgeVersion = typeof msg.bridge_version === "string" ? msg.bridge_version : null;
     mcpAlive = !!msg.mcp_alive;
     if (Array.isArray(msg.tools)) toolsCache = msg.tools;
+    if (Array.isArray(msg.skills)) skillsCache = msg.skills;
     if (Array.isArray(msg.servers)) serversCache = msg.servers;
     broadcastStatus();
     return;
@@ -390,6 +392,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (!connected) connect(); // self-heal after a worker wake-up
         sendResponse(statusObj());
         break;
+      case "list_skills": {
+        if (skillsCache.length > 0) {
+          sendResponse({ ok: true, skills: skillsCache });
+          break;
+        }
+        const r = await send({ type: "list_skills" }, 8000);
+        if (r && r.skills) {
+          skillsCache = r.skills;
+          sendResponse({ ok: true, skills: r.skills });
+        } else {
+          sendResponse({ ok: skillsCache.length > 0, skills: skillsCache });
+        }
+        break;
+      }
       case "list_tools": {
         // Prefer a live refresh; fall back to cache so the loop never stalls.
         // 10s, not 25s: a catalogue request only blocks this long when one of the
