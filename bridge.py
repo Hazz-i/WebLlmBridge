@@ -27,7 +27,7 @@ else:
     ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
 LOG_PATH = ROOT / "logs" / "bridge_debug.log"
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = int(os.environ.get("ZS_BRIDGE_PORT", "17613"))
 HERMES_HTTP_PORT = int(os.environ.get("ZS_HERMES_PORT", "17614"))
 MCP_PROTOCOL_VERSION = "2024-11-05"

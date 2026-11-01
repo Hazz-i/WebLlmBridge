@@ -8,7 +8,8 @@
 // even when the bridge is offline. The agentic loop must never hang waiting.
 
 const PORT = 17613;
-const URL = `ws://127.0.0.1:${PORT}`;
+const URLS = [`ws://127.0.0.1:${PORT}`, `ws://172.17.0.1:${PORT}`];
+let urlIndex = 0;
 
 // Chat sites where a snapgentV3 provider content script runs. Status pushes go
 // to every tab matching these. Add the new provider's URL pattern here (and in
@@ -63,10 +64,12 @@ function connect() {
     return;
   }
   clearTimeout(reconnectTimer);
+  const targetUrl = URLS[urlIndex % URLS.length];
   try {
-    ws = new WebSocket(URL);
+    ws = new WebSocket(targetUrl);
   } catch (e) {
-    log("WebSocket ctor failed", e);
+    log("WebSocket ctor failed on " + targetUrl, e);
+    urlIndex++;
     scheduleReconnect();
     return;
   }
@@ -94,6 +97,7 @@ function connect() {
   ws.onclose = () => {
     connected = false;
     mcpAlive = false;
+    urlIndex++;
     studioConnected = null;
     studioApp = null;
     studioProc = null;
