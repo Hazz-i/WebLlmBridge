@@ -38,7 +38,7 @@ const ZSProvider = (() => {
     WARMUP_MS: 60000,
     REASON_NOREPLY_MS: 120000,
     STABLE_MS: 10000,
-    RESPONSE_TIMEOUT_MS: 300000,
+    RESPONSE_TIMEOUT_MS: 45000,
   };
 
   const visible = (el) => !!el && el.isConnected && el.getClientRects().length > 0;

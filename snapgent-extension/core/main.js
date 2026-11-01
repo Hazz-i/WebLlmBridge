@@ -4888,7 +4888,9 @@
           }
         }
 
-        const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants || newlyRenderedImg;
+        // Google Flow bypass: if on google-flow, consider any text in assistant turn as progress
+        const isFlow = P.id === "google-flow";
+        const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants || newlyRenderedImg || (isFlow && curText.length > 0 && curText !== lastText);
 
         if (isNewTurn) {
           const res = P.readAssistant ? P.readAssistant() : null;
