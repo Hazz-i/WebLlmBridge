@@ -14,6 +14,8 @@ let urlIndex = 0;
 // Chat sites where a snapgentV3 provider content script runs. Status pushes go
 // to every tab matching these. Add the new provider's URL pattern here (and in
 // manifest.json content_scripts + host_permissions) when integrating another AI.
+let latestClaudeArtifact = null;
+
 const PROVIDER_URLS = ["https://chat.deepseek.com/*", "https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "https://www.kimi.ai/*", "https://kimi.ai/*", "https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://arena.ai/*", "https://www.meta.ai/*", "https://meta.ai/*", "https://ptero.pro/*", "https://grok.com/*", "https://chat.mistral.ai/*"];
 
 const RECONNECT_MIN = 1000;
@@ -354,8 +356,28 @@ function broadcastStatus() {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     switch (msg.type) {
+      case "claude_artifact_captured":
+        latestClaudeArtifact = {
+          image: msg.image || null,
+          svg: msg.svg || null,
+          ts: Date.now()
+        };
+        log("Captured Claude sandbox artifact:", msg.image ? "image" : "svg");
+        sendResponse({ ok: true });
+        break;
       case "hermes_chat_response":
         try {
+          if (latestClaudeArtifact && Date.now() - latestClaudeArtifact.ts < 90000) {
+            msg.images = msg.images || [];
+            msg.svgs = msg.svgs || [];
+            if (latestClaudeArtifact.image && !msg.images.includes(latestClaudeArtifact.image)) {
+              msg.images.push(latestClaudeArtifact.image);
+            }
+            if (latestClaudeArtifact.svg && !msg.svgs.includes(latestClaudeArtifact.svg)) {
+              msg.svgs.push(latestClaudeArtifact.svg);
+            }
+            latestClaudeArtifact = null; // consume
+          }
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(msg));
           }

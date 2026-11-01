@@ -859,13 +859,24 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                     ts = int(time.time())
                     for idx, svg_code in enumerate(svgs):
                         try:
+                            # Sanitize SVG CSS vars if any
+                            clean_svg = re.sub(r'var\([^,)]+,\s*([^)]+)\)', r'\1', svg_code)
+                            clean_svg = re.sub(r'var\([^)]+\)', '#f97316', clean_svg)
+                            clean_svg = clean_svg.replace('currentColor', '#18181b')
+
                             svg_file = scratch_dir / f"claude_{ts}_{idx}.svg"
                             png_file = scratch_dir / f"claude_{ts}_{idx}.png"
-                            svg_file.write_text(svg_code, encoding="utf-8")
-                            res = subprocess.run(["convert", "-background", "none", "-density", "300", str(svg_file), str(png_file)], capture_output=True)
-                            if res.returncode == 0 and png_file.exists():
+                            svg_file.write_text(clean_svg, encoding="utf-8")
+
+                            try:
+                                import cairosvg
+                                cairosvg.svg2png(bytestring=clean_svg.encode("utf-8"), write_to=str(png_file), output_width=1024)
+                            except Exception:
+                                subprocess.run(["convert", "-background", "none", "-density", "300", str(svg_file), str(png_file)], capture_output=True)
+
+                            if png_file.exists() and png_file.stat().st_size > 0:
                                 media_tags.append(f"MEDIA:{png_file}")
-                                log(f"[Hermes HTTP] Converted Claude SVG to {png_file}")
+                                log(f"[Hermes HTTP] Converted Claude SVG to {png_file} ({png_file.stat().st_size} bytes)")
                         except Exception as svg_err:
                             log(f"[Hermes HTTP] Failed to convert SVG {idx}: {svg_err}")
 

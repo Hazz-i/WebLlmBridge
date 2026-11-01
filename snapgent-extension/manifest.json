@@ -27,7 +27,9 @@
     "https://chat.mistral.ai/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*",
-    "ws://100.89.132.121/*"
+    "ws://100.89.132.121/*",
+    "https://*.claudemcpcontent.com/*",
+    "https://claude.site/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -250,6 +252,17 @@
       "css": [
         "overlay.css"
       ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.claudemcpcontent.com/*",
+        "https://claude.site/*"
+      ],
+      "js": [
+        "artifacts.js"
+      ],
+      "all_frames": true,
       "run_at": "document_idle"
     }
   ]
