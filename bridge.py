@@ -832,6 +832,11 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                 else:
                     answer = bridge_resp.get("text", "")
                 
+                # Sanitize response
+                if answer.startswith("Claude responded:"):
+                    answer = answer[len("Claude responded:"):].strip()
+                answer = re.sub(r'[\ue000-\uf8ff]|just now.*$', '', answer).strip()
+
                 images = bridge_resp.get("images", [])
 
                 # Download images to local scratch and append MEDIA: tag for Telegram photo delivery
