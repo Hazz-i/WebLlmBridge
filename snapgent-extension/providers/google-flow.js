@@ -132,22 +132,39 @@ const ZSProvider = (() => {
     if (!ed) throw new Error("Google Flow editor not found");
 
     ed.focus();
-    // Robust value assignment across DOM environments (avoid Illegal Invocation)
-    try {
-      const proto = ed instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-      if (setter) {
-        setter.call(ed, text);
-      } else {
-        ed.value = text;
-      }
-    } catch (e) {
-      ed.value = text;
-    }
+    const tag = (ed.tagName || "").toLowerCase();
+    const isFormField = tag === "textarea" || tag === "input";
 
-    ed.dispatchEvent(new Event("input", { bubbles: true }));
-    ed.dispatchEvent(new Event("change", { bubbles: true }));
-    await sleep(200);
+    if (isFormField) {
+      try {
+        ed.value = text;
+      } catch (e) {}
+      ed.dispatchEvent(new Event("input", { bubbles: true }));
+      ed.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      // contenteditable rich-text div (Google Flow uses this, not a textarea)
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(ed);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      let inserted = false;
+      try {
+        inserted = document.execCommand("insertText", false, text);
+      } catch (e) {
+        inserted = false;
+      }
+      if (!inserted) {
+        ed.innerText = text;
+      }
+      try {
+        ed.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
+      } catch (e) {
+        ed.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      ed.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    await sleep(300);
 
     // Try finding send / submit button near the editor
     let sendBtn = null;
