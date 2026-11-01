@@ -165,9 +165,22 @@ def send_claude_web_chat(prompt: str, timeout: float = 120.0) -> str:
             stream=True,
         )
 
+    # Jika terkena burst rate limit sesaat (cooldown antar pesan cepat), tunggu 6 detik dan coba lagi sekali
+    if resp.status_code == 429:
+        time.sleep(6)
+        resp = requests.post(
+            chat_url,
+            json=payload,
+            cookies=cookies,
+            headers=headers,
+            impersonate="chrome124",
+            timeout=timeout,
+            stream=True,
+        )
+
     if resp.status_code != 200:
         if resp.status_code == 429:
-            raise RuntimeError("Akun Claude web lu sedang terkena batas pesan (Rate Limit / Cooldown 5 jam dari Anthropic). Silakan coba lagi nanti.")
+            raise RuntimeError("Akun Claude web lu sedang terkena batas pesan (Rate Limit / Cooldown dari Anthropic). Silakan tunggu 1-2 menit lalu coba lagi.")
         raise RuntimeError(f"Claude Web mengembalikan status HTTP {resp.status_code}: {resp.text}")
 
     full_reply = []
