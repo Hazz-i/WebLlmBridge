@@ -802,6 +802,8 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                 "data": [
                     {"id": "web-claude", "object": "model", "owned_by": "web-llm-bridge"},
                     {"id": "web-chatgpt", "object": "model", "owned_by": "web-llm-bridge"},
+                    {"id": "web-gemini", "object": "model", "owned_by": "web-llm-bridge"},
+                    {"id": "web-google-flow", "object": "model", "owned_by": "web-llm-bridge"},
                     {"id": "web-active-tab", "object": "model", "owned_by": "web-llm-bridge"}
                 ]
             }

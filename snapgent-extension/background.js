@@ -16,7 +16,7 @@ let urlIndex = 0;
 // manifest.json content_scripts + host_permissions) when integrating another AI.
 let latestClaudeArtifact = null;
 
-const PROVIDER_URLS = ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*", "https://gemini.google.com/*"];
+const PROVIDER_URLS = ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "https://flow.google.com/*"];
 
 const RECONNECT_MIN = 1000;
 const RECONNECT_MAX = 5000;
@@ -226,10 +226,16 @@ function isProviderTab(tab, model) {
   if (model === "web-chatgpt") {
     return url.includes("chatgpt.com") || url.includes("openai.com");
   }
+  if (model === "web-gemini") {
+    return url.includes("gemini.google.com");
+  }
+  if (model === "web-google-flow" || model === "web-flow") {
+    return url.includes("flow.google.com");
+  }
   return PROVIDER_URLS.some((u) => {
     const reg = new RegExp("^" + u.replace(/\*/g, ".*") + "$");
     return reg.test(url);
-  }) || url.includes("claude.ai") || url.includes("chatgpt.com");
+  });
 }
 
 function forwardToTab(tabId, msg) {
