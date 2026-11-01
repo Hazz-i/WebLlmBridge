@@ -4861,7 +4861,10 @@
         if (!isGen) {
           const res = P.readAssistant ? P.readAssistant() : null;
           const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
-          if (curText && curText === lastText) {
+          const turnItem = (res && res.item) || (P.lastAssistant ? P.lastAssistant() : null);
+          const hasImageInTurn = turnItem && (turnItem.querySelector("img:not([src*='avatar']), canvas, svg") !== null);
+
+          if (curText === lastText || hasImageInTurn) {
             stableCount++;
             if (stableCount >= 2) break;
           } else {
