@@ -830,28 +830,27 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
             model = req_json.get("model", "web-claude")
             messages = req_json.get("messages", [])
 
-            if model in ("web-claude", "claude"):
-                # Extract only user prompt to keep within Claude free-tier token cap
-                user_msgs = [m.get("content", "") for m in messages if m.get("role") == "user"]
-                target_prompt = user_msgs[-1] if user_msgs else (messages[-1].get("content", "") if messages else "Halo")
-                if isinstance(target_prompt, list):
-                    target_prompt = " ".join([item.get("text", "") for item in target_prompt if isinstance(item, dict)])
-                full_prompt = target_prompt
-            else:
-                prompt_parts = []
-                for m in messages:
-                    role = m.get("role", "user")
-                    c = m.get("content", "")
-                    if isinstance(c, list):
-                        c = " ".join([item.get("text", "") for item in c if isinstance(item, dict)])
-                    if role == "system":
-                        prompt_parts.append(f"[System Instruction]\n{c}")
-                    elif role == "user":
-                        prompt_parts.append(f"[User]\n{c}")
-                    elif role == "assistant":
-                        prompt_parts.append(f"[Assistant]\n{c}")
+            # 1. Fast-reply to internal Hermes auto-title requests locally (never pollute browser)
+            all_content = " ".join([str(m.get("content", "")) for m in messages])
+            if "generate concise, descriptive titles" in all_content or "Output strictly valid JSON with key \"title\"" in all_content or 'Output strictly valid JSON with key' in all_content:
+                fast_ans = json.dumps({"title": "Web Chat"})
+                if req_json.get("stream"):
+                    resp_headers = f"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n{cors_headers}\r\n".encode("utf-8")
+                    chunk = {"id": f"chatcmpl-hermes-{int(time.time()*1000)}", "object": "chat.completion.chunk", "created": int(time.time()), "model": model, "choices": [{"index": 0, "delta": {"role": "assistant", "content": fast_ans}, "finish_reason": "stop"}]}
+                    writer.write(resp_headers + f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n".encode("utf-8"))
+                else:
+                    body = json.dumps({"id": f"chatcmpl-hermes-{int(time.time()*1000)}", "object": "chat.completion", "created": int(time.time()), "model": model, "choices": [{"index": 0, "message": {"role": "assistant", "content": fast_ans}, "finish_reason": "stop"}]}).encode("utf-8")
+                    writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(body)}\r\n{cors_headers}\r\n".encode("utf-8") + body)
+                await writer.drain()
+                writer.close()
+                return
 
-                full_prompt = "\n\n".join(prompt_parts) if prompt_parts else req_json.get("prompt", "Halo!")
+            # 2. Extract ONLY the clean, pure user prompt for all web models (no [System Instruction] clutter)
+            user_msgs = [m.get("content", "") for m in messages if m.get("role") == "user"]
+            target_prompt = user_msgs[-1] if user_msgs else (messages[-1].get("content", "") if messages else "Halo")
+            if isinstance(target_prompt, list):
+                target_prompt = " ".join([item.get("text", "") for item in target_prompt if isinstance(item, dict)])
+            full_prompt = target_prompt.strip()
             log(f"[Hermes HTTP] Received chat request ({len(full_prompt)} chars) for model: {model}")
 
             try:

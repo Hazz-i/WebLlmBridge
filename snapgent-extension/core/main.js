@@ -4836,14 +4836,18 @@
         await P.ensureComposerReady();
       }
 
+      const baseAssistantId = P.lastAssistantId ? P.lastAssistantId() : null;
       const baseAssistants = P.assistantCount ? P.assistantCount() : 0;
       log("sending Hermes chat prompt to", P.displayName || P.id);
       await P.typeAndSend(req.prompt);
 
-      // Wait for generation to start or assistant count to increase
+      // Wait until generation has actually STARTED and a NEW turn has appeared
       const startWait = Date.now();
-      while (Date.now() - startWait < 12000) {
-        if ((P.isGenerating && P.isGenerating()) || (P.assistantCount && P.assistantCount() > baseAssistants)) {
+      while (Date.now() - startWait < 20000) {
+        const curId = P.lastAssistantId ? P.lastAssistantId() : null;
+        const curCount = P.assistantCount ? P.assistantCount() : 0;
+        const isGen = P.isGenerating ? P.isGenerating() : false;
+        if (isGen || (curId && curId !== baseAssistantId) || curCount > baseAssistants) {
           break;
         }
         await sleep(300);
@@ -4857,8 +4861,14 @@
 
       while (Date.now() - genStart < maxWait) {
         await sleep(500);
+        const curId = P.lastAssistantId ? P.lastAssistantId() : null;
+        const curCount = P.assistantCount ? P.assistantCount() : 0;
         const isGen = P.isGenerating ? P.isGenerating() : false;
-        if (!isGen) {
+
+        // Ensure we are inspecting the NEW turn, never the old previous turn!
+        const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants;
+
+        if (isNewTurn && !isGen) {
           const res = P.readAssistant ? P.readAssistant() : null;
           const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
           const turnItem = (res && res.item) || (P.lastAssistant ? P.lastAssistant() : null);
