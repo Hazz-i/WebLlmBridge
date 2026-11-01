@@ -820,7 +820,13 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
             try:
                 if model in ("web-claude", "claude"):
                     from claude_web_client import send_claude_web_chat
-                    answer = await asyncio.to_thread(send_claude_web_chat, full_prompt, 120.0)
+                    try:
+                        answer = await asyncio.to_thread(send_claude_web_chat, full_prompt, 120.0)
+                    except Exception as claude_err:
+                        err_str = str(claude_err)
+                        log(f"[Hermes HTTP] Claude client error: {err_str}")
+                        # Return friendly message directly instead of 500 so Hermes doesn't hang in retry loop
+                        answer = f"⚠️ {err_str}"
                 else:
                     bridge_resp = await bridge.request_hermes_chat(full_prompt, model=model, timeout=300.0)
                     if not bridge_resp.get("ok"):
