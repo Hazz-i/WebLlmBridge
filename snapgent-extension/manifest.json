@@ -9,28 +9,11 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://chat.deepseek.com/*",
-    "https://deepseek.com/*",
     "https://chatgpt.com/*",
-    "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://www.kimi.ai/*",
-    "https://kimi.ai/*",
-    "https://chat.z.ai/*",
-    "https://chat.qwen.ai/*",
-    "https://arena.ai/*",
-    "https://www.meta.ai/*",
-    "https://meta.ai/*",
-    "https://ptero.pro/*",
-    "https://grok.com/*",
-    "https://chat.mistral.ai/*",
     "http://127.0.0.1/*",
-    "ws://127.0.0.1/*",
-    "ws://100.89.132.121/*",
-    "https://*.claudemcpcontent.com/*",
-    "https://claude.site/*",
-    "https://*.oaiusercontent.com/*"
+    "https://claude.site/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -59,21 +42,6 @@
       ],
       "world": "MAIN",
       "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "https://chat.deepseek.com/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/deepseek.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -126,138 +94,6 @@
         "core/config.js",
         "core/parser.js",
         "providers/gemini.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://www.kimi.ai/*",
-        "https://kimi.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/kimi.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://chat.z.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/glm.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://arena.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/arena.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://www.meta.ai/*",
-        "https://meta.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/meta.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://ptero.pro/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/ptero.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://grok.com/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/grok.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://chat.mistral.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/mistral.js",
-        "core/main.js"
-      ],
-      "css": [
-        "overlay.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://chat.qwen.ai/*"
-      ],
-      "js": [
-        "providers/qwen-net.js"
-      ],
-      "world": "MAIN",
-      "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "https://chat.qwen.ai/*"
-      ],
-      "js": [
-        "core/config.js",
-        "core/parser.js",
-        "providers/qwen.js",
         "core/main.js"
       ],
       "css": [
