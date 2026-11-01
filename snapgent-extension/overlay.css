@@ -1,3 +1,127 @@
+/* Clean, natural Hermes Bridge bar (aligned right, no background, no border) */
+#zs-bar,
+#zs-bar.zs-bar-inline,
+#zs-bar.zs-bar-anchored,
+#zs-bar.zs-bar-inside,
+html.zs-light #zs-bar,
+html.zs-light #zs-bar.zs-bar-inline,
+html.zs-light #zs-bar.zs-bar-anchored,
+html.zs-light #zs-bar.zs-bar-inside {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 4px 0 6px !important;
+  margin: 0 0 4px auto !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+.zs-bridge-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.40);
+  letter-spacing: 0.2px;
+  user-select: none;
+  margin-right: 2px;
+}
+html.zs-light .zs-bridge-label {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* Dropdown buttons: Hermes Agent and Claude dropdowns - no colored border */
+.zs-target-wrap, #zs-switch {
+  display: inline-flex !important;
+  align-items: center !important;
+  position: relative !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  padding: 4px 10px !important;
+  color: #e4e4e7 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  height: 28px !important;
+  cursor: pointer !important;
+  gap: 5px !important;
+}
+html.zs-light .zs-target-wrap, html.zs-light #zs-switch {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border: none !important;
+  color: #18181b !important;
+}
+.zs-target-wrap:hover, #zs-switch:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+html.zs-light .zs-target-wrap:hover, html.zs-light #zs-switch:hover {
+  background: rgba(0, 0, 0, 0.10) !important;
+}
+
+/* Modals & Alerts: Centered on screen, no colored border, high blur */
+.zs-toast {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) scale(0.95) !important;
+  max-width: 440px !important;
+  min-width: 240px !important;
+  padding: 16px 24px !important;
+  background: rgba(24, 24, 27, 0.96) !important;
+  color: #f4f4f5 !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(24px) !important;
+  z-index: 2147483647 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.22s ease, transform 0.22s ease !important;
+}
+.zs-toast.show {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translate(-50%, -50%) scale(1) !important;
+}
+html.zs-light .zs-toast {
+  background: rgba(255, 255, 255, 0.98) !important;
+  color: #18181b !important;
+  border: none !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2) !important;
+}
+
+.zs-banner {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 420px !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 18px !important;
+  background: rgba(24, 24, 27, 0.98) !important;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(24px) !important;
+  z-index: 2147483647 !important;
+}
+
+#zs-menu, #zs-target-menu {
+  border: none !important;
+  outline: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
 /* Clean, natural Hermes Bridge bar (no background, no border) */
 #zs-bar,
 #zs-bar.zs-bar-inline,

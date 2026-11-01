@@ -2800,19 +2800,19 @@
       // no overlay on the input - the composer stays fully usable for plain chat.
       root.innerHTML = `
         <div id="zs-bar">
+          <span class="zs-bridge-label">Hermes Bridge</span>
           <div class="zs-target-wrap" title="Choose MCP target">
             <select id="zs-target" aria-label="MCP target" hidden tabindex="-1">
               <option value="hermes">Hermes Agent</option>
               <option value="vscode">VS Code</option>
             </select>
-            <button id="zs-target-btn" type="button" aria-haspopup="listbox" aria-label="Choose MCP target"><span id="zs-target-name"></span></button>
+            <button id="zs-target-btn" type="button" aria-haspopup="listbox" aria-label="Choose MCP target"><span id="zs-target-name">Hermes Agent</span></button>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-          <span class="zs-bridge-label">Hermes Bridge</span>
+          <button id="zs-switch" type="button" aria-label="Switch AI and options" title="Switch AI and options"><span id="zs-switch-name">Claude</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <span id="zs-state" hidden></span>
           <button id="zs-action" hidden></button>
           <button id="zs-stop" hidden>■ Stop</button>
-          <button id="zs-switch" aria-label="Switch AI and options" title="Switch AI and options" hidden><span id="zs-switch-name"></span></button>
         </div>
         <div id="zs-menu" hidden></div>
         <div id="zs-target-menu" hidden></div>
