@@ -369,7 +369,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         break;
       case "hermes_chat_response":
         try {
-          if (latestClaudeArtifact && Date.now() - latestClaudeArtifact.ts < 90000) {
+          const isClaude = _sender && _sender.tab && _sender.tab.url && _sender.tab.url.includes("claude.ai");
+          if (isClaude && latestClaudeArtifact && Date.now() - latestClaudeArtifact.ts < 90000) {
             msg.images = msg.images || [];
             msg.svgs = msg.svgs || [];
             if (latestClaudeArtifact.image && !msg.images.includes(latestClaudeArtifact.image)) {

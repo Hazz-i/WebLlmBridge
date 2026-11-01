@@ -4923,24 +4923,12 @@
         return url;
       };
 
-      // 1. Scan ALL <canvas> elements across entire page and iframes
-      document.querySelectorAll("canvas").forEach((canvas) => {
-        try {
-          if (canvas.width >= 60 && canvas.height >= 60) {
-            const durl = canvas.toDataURL("image/png");
-            if (durl && durl.length > 500 && !images.includes(durl)) {
-              images.push(durl);
-            }
-          }
-        } catch (e) {}
-      });
-
-      // 2. Scan ALL <img> elements on the entire page
-      for (const img of document.querySelectorAll("img")) {
+      // 1. Scan images inside lastItem (ChatGPT DALL-E generated images, inline pictures)
+      const turnImgs = lastItem ? lastItem.querySelectorAll("img") : [];
+      for (const img of turnImgs) {
         const src = img.currentSrc || img.src || img.getAttribute("src") || "";
         const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("icon");
-        const isSmall = (img.width > 0 && img.width < 70) || (img.naturalWidth > 0 && img.naturalWidth < 70);
-        if (src && !src.startsWith("data:image/svg") && !isAvatar && !isSmall) {
+        if (src && !isAvatar) {
           const resolved = await toDataUrl(src);
           if (resolved && !images.includes(resolved)) {
             images.push(resolved);
@@ -4948,25 +4936,44 @@
         }
       }
 
-      // 3. Scan ALL download / image links on the page
-      for (const a of document.querySelectorAll('a[download], a[href*="blob:"], a[href*="png"], a[href*="jpg"], a[href*="webp"]')) {
-        const href = a.href || a.getAttribute("href");
-        if (href && (href.startsWith("blob:") || href.startsWith("data:image/") || href.includes(".png") || href.includes(".jpg"))) {
-          const resolved = await toDataUrl(href);
-          if (resolved && !images.includes(resolved)) {
-            images.push(resolved);
+      // 2. Scan Artifact panels for Claude
+      if (images.length === 0) {
+        const artifactImgs = document.querySelectorAll('[data-testid*="artifact"] img, [class*="artifact"] img, aside img');
+        for (const img of artifactImgs) {
+          const src = img.currentSrc || img.src || "";
+          if (src && !src.includes("avatar")) {
+            const resolved = await toDataUrl(src);
+            if (resolved && !images.includes(resolved)) images.push(resolved);
           }
         }
       }
 
-      // 4. Scan SVGs on entire page
+      // 3. Scan canvases in lastItem or artifact panels
+      const candidateCanvases = [
+        ...(lastItem ? lastItem.querySelectorAll("canvas") : []),
+        ...document.querySelectorAll('[data-testid*="artifact"] canvas, [class*="artifact"] canvas, aside canvas')
+      ];
+      candidateCanvases.forEach((c) => {
+        try {
+          if (c.width >= 100 && c.height >= 100) {
+            const durl = c.toDataURL("image/png");
+            if (durl && !images.includes(durl)) images.push(durl);
+          }
+        } catch (e) {}
+      });
+
+      // 4. Scan SVGs in lastItem or artifact panels
       const serializer = new XMLSerializer();
-      document.querySelectorAll("svg").forEach((svg) => {
-        const viewBox = svg.getAttribute("viewBox") || "";
-        const isIcon = viewBox.includes("0 0 24 24") || viewBox.includes("0 0 16 16") || viewBox.includes("0 0 20 20");
+      const candidateSvgs = [
+        ...(lastItem ? lastItem.querySelectorAll("svg") : []),
+        ...document.querySelectorAll('[data-testid*="artifact"] svg, [class*="artifact"] svg, aside svg')
+      ];
+      candidateSvgs.forEach((svg) => {
+        const vb = svg.getAttribute("viewBox") || "";
+        const isIcon = vb.includes("0 0 24 24") || vb.includes("0 0 16 16") || vb.includes("0 0 20 20");
         const w = svg.clientWidth || svg.getAttribute("width") || 0;
         const h = svg.clientHeight || svg.getAttribute("height") || 0;
-        if (!isIcon && (w > 60 || h > 60 || (!w && !h && viewBox))) {
+        if (!isIcon && (w >= 100 || h >= 100)) {
           const s = serializer.serializeToString(svg);
           if (!svgs.includes(s)) svgs.push(s);
         }
@@ -4979,31 +4986,6 @@
           if (m && !svgs.includes(m[0])) svgs.push(m[0]);
         });
       }
-
-      // 6. Check iframes across page
-      document.querySelectorAll("iframe").forEach((frame) => {
-        try {
-          const doc = frame.contentDocument || frame.contentWindow.document;
-          if (doc) {
-            doc.querySelectorAll("svg").forEach((svg) => {
-              const s = serializer.serializeToString(svg);
-              if (!svgs.includes(s)) svgs.push(s);
-            });
-            doc.querySelectorAll("canvas").forEach((canvas) => {
-              try {
-                if (canvas.width >= 60 && canvas.height >= 60) {
-                  const durl = canvas.toDataURL("image/png");
-                  if (durl && durl.length > 500 && !images.includes(durl)) images.push(durl);
-                }
-              } catch (e) {}
-            });
-            doc.querySelectorAll("img").forEach((img) => {
-              const src = img.currentSrc || img.src || "";
-              if (src && !images.includes(src)) images.push(src);
-            });
-          }
-        } catch (e) {}
-      });
 
       const debugTags = [];
       document.querySelectorAll('img, canvas, svg, iframe, a[download], [data-testid*="artifact"], [data-testid*="visual"]').forEach((el) => {
