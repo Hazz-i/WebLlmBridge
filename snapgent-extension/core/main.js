@@ -4880,6 +4880,11 @@
         }
       }
 
+      // Extract final assistant turn reply
+      const finalRes = P.readAssistant ? P.readAssistant() : null;
+      let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
+      const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
+
       // Give React / Artifact drawer 1s to fully mount into DOM
       await sleep(1000);
 
@@ -4902,10 +4907,6 @@
       }
       await sleep(800);
 
-      // Extract final assistant turn reply, images (img/canvas/blob), and vector illustrations (svg)
-      const finalRes = P.readAssistant ? P.readAssistant() : null;
-      let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
-      const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
       const images = [...capturedBlobs];
       const svgs = [];
       capturedBlobs.length = 0; // reset for next request
