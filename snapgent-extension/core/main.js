@@ -4899,24 +4899,23 @@
       // Give React / Artifact drawer 1s to fully mount into DOM
       await sleep(1000);
 
-      // Programmatically click any file download button in the response card to trigger real blob download
-      const downloadCandidateBtns = [
-        ...(lastItem ? lastItem.querySelectorAll('button, a[download], [role="button"]') : []),
-        ...document.querySelectorAll('button[aria-label*="download" i], button[title*="download" i], [data-testid*="download" i]')
-      ];
-      for (const btn of downloadCandidateBtns) {
-        try {
-          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
-          const title = (btn.getAttribute("title") || "").toLowerCase();
-          const txt = (btn.textContent || "").toLowerCase();
-          const isDownload = aria.includes("download") || title.includes("download") || txt.includes("download") || btn.hasAttribute("download");
-          if (isDownload) {
-            log("Clicking response download button to trigger blob extraction:", aria || title || txt);
-            btn.click();
-          }
-        } catch (e) {}
+      // Only click download button inside Claude artifact panels (never global document query!)
+      if (P.id === "claude" && document.querySelector('[data-testid*="artifact"], [class*="artifact"]')) {
+        const artifactBtns = document.querySelectorAll('[data-testid*="artifact"] button, [class*="artifact"] button, [data-testid*="artifact"] a[download]');
+        for (const btn of artifactBtns) {
+          try {
+            const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+            const title = (btn.getAttribute("title") || "").toLowerCase();
+            const txt = (btn.textContent || "").toLowerCase();
+            const isDownload = aria.includes("download") || title.includes("download") || txt.includes("download") || btn.hasAttribute("download");
+            if (isDownload) {
+              log("Clicking Claude artifact download button:", aria || title || txt);
+              btn.click();
+            }
+          } catch (e) {}
+        }
+        await sleep(500);
       }
-      await sleep(800);
 
       const images = [...capturedBlobs];
       const svgs = [];
