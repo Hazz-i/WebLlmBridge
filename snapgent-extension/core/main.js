@@ -2800,10 +2800,7 @@
       // no overlay on the input - the composer stays fully usable for plain chat.
       root.innerHTML = `
         <div id="zs-bar">
-          <span id="zs-state"></span>
-          <button id="zs-action"></button>
-          <button id="zs-stop" hidden>■ Stop</button>
-          <div class="zs-target-wrap" title="Choose which MCP server receives commands">
+          <div class="zs-target-wrap" title="Choose MCP target">
             <select id="zs-target" aria-label="MCP target" hidden tabindex="-1">
               <option value="hermes">Hermes Agent</option>
               <option value="vscode">VS Code</option>
@@ -2811,7 +2808,11 @@
             <button id="zs-target-btn" type="button" aria-haspopup="listbox" aria-label="Choose MCP target"><span id="zs-target-name"></span></button>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-          <button id="zs-switch" aria-label="Switch AI and options" title="Switch AI and options"><span id="zs-switch-name"></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <span class="zs-bridge-label">Hermes Bridge</span>
+          <span id="zs-state" hidden></span>
+          <button id="zs-action" hidden></button>
+          <button id="zs-stop" hidden>■ Stop</button>
+          <button id="zs-switch" aria-label="Switch AI and options" title="Switch AI and options" hidden><span id="zs-switch-name"></span></button>
         </div>
         <div id="zs-menu" hidden></div>
         <div id="zs-target-menu" hidden></div>
@@ -4924,6 +4925,9 @@
         }
       }
 
+      // Give React / Artifact drawer 1.5s to fully mount into DOM
+      await sleep(1500);
+
       // Extract final assistant turn reply, images (img/canvas/blob), and vector illustrations (svg)
       const finalRes = P.readAssistant ? P.readAssistant() : null;
       let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
@@ -4935,7 +4939,7 @@
       const toDataUrl = async (url) => {
         if (!url) return null;
         if (url.startsWith("data:image/")) return url;
-        if (url.startsWith("blob:")) {
+        if (url.startsWith("blob:") || url.startsWith("http")) {
           try {
             const resp = await fetch(url);
             const blob = await resp.blob();
@@ -4952,7 +4956,7 @@
         return url;
       };
 
-      // 1. Check all <canvas> elements across page (Artifacts illustration / PNG generator)
+      // 1. Scan ALL <canvas> elements across entire page and iframes
       document.querySelectorAll("canvas").forEach((canvas) => {
         try {
           if (canvas.width >= 60 && canvas.height >= 60) {
@@ -4964,14 +4968,12 @@
         } catch (e) {}
       });
 
-      // 2. Check <img> elements in lastItem AND Artifact panels
-      const candidateImgs = [
-        ...(lastItem ? lastItem.querySelectorAll("img") : []),
-        ...document.querySelectorAll('[data-testid*="artifact"] img, [class*="artifact"] img, aside img, .artifact-viewer img, [class*="preview"] img')
-      ];
-      for (const img of candidateImgs) {
-        const src = img.currentSrc || img.src || img.getAttribute("src");
-        if (src && !src.startsWith("data:image/svg") && !src.includes("avatar") && !src.includes("profile") && !src.includes("icon")) {
+      // 2. Scan ALL <img> elements on the entire page
+      for (const img of document.querySelectorAll("img")) {
+        const src = img.currentSrc || img.src || img.getAttribute("src") || "";
+        const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("icon");
+        const isSmall = (img.width > 0 && img.width < 70) || (img.naturalWidth > 0 && img.naturalWidth < 70);
+        if (src && !src.startsWith("data:image/svg") && !isAvatar && !isSmall) {
           const resolved = await toDataUrl(src);
           if (resolved && !images.includes(resolved)) {
             images.push(resolved);
@@ -4979,11 +4981,10 @@
         }
       }
 
-      // 3. Check download links for generated PNG / JPG artifacts
-      const downloadLinks = document.querySelectorAll('a[download*="png" i], a[download*="jpg" i], a[download*="jpeg" i], a[href*="blob:"]');
-      for (const a of downloadLinks) {
+      // 3. Scan ALL download / image links on the page
+      for (const a of document.querySelectorAll('a[download], a[href*="blob:"], a[href*="png"], a[href*="jpg"], a[href*="webp"]')) {
         const href = a.href || a.getAttribute("href");
-        if (href && (href.startsWith("blob:") || href.startsWith("data:image/"))) {
+        if (href && (href.startsWith("blob:") || href.startsWith("data:image/") || href.includes(".png") || href.includes(".jpg"))) {
           const resolved = await toDataUrl(href);
           if (resolved && !images.includes(resolved)) {
             images.push(resolved);
@@ -4991,22 +4992,20 @@
         }
       }
 
-      // 4. Extract SVG vector illustrations from lastItem and Artifact panels
+      // 4. Scan SVGs on entire page
       const serializer = new XMLSerializer();
-      const svgCandidates = [
-        ...(lastItem ? lastItem.querySelectorAll("svg") : []),
-        ...document.querySelectorAll('[data-testid*="artifact"] svg, [class*="artifact"] svg, aside svg, .artifact-viewer svg')
-      ];
-      svgCandidates.forEach((svg) => {
+      document.querySelectorAll("svg").forEach((svg) => {
         const viewBox = svg.getAttribute("viewBox") || "";
         const isIcon = viewBox.includes("0 0 24 24") || viewBox.includes("0 0 16 16") || viewBox.includes("0 0 20 20");
-        if (!isIcon) {
+        const w = svg.clientWidth || svg.getAttribute("width") || 0;
+        const h = svg.clientHeight || svg.getAttribute("height") || 0;
+        if (!isIcon && (w > 60 || h > 60 || (!w && !h && viewBox))) {
           const s = serializer.serializeToString(svg);
           if (!svgs.includes(s)) svgs.push(s);
         }
       });
 
-      // 5. Also check raw SVG code blocks in pre/code
+      // 5. Check raw SVG code blocks in pre/code
       if (lastItem) {
         lastItem.querySelectorAll("pre, code").forEach((c) => {
           const m = (c.textContent || "").match(/<svg[\s\S]*?<\/svg>/i);
@@ -5014,7 +5013,7 @@
         });
       }
 
-      // 6. Also check iframes in page (Claude artifact preview panel)
+      // 6. Check iframes across page
       document.querySelectorAll("iframe").forEach((frame) => {
         try {
           const doc = frame.contentDocument || frame.contentWindow.document;
@@ -5030,6 +5029,10 @@
                   if (durl && durl.length > 500 && !images.includes(durl)) images.push(durl);
                 }
               } catch (e) {}
+            });
+            doc.querySelectorAll("img").forEach((img) => {
+              const src = img.currentSrc || img.src || "";
+              if (src && !images.includes(src)) images.push(src);
             });
           }
         } catch (e) {}

@@ -1,3 +1,52 @@
+/* Clean, natural Hermes Bridge bar (no background, no border) */
+#zs-bar,
+#zs-bar.zs-bar-inline,
+#zs-bar.zs-bar-anchored,
+#zs-bar.zs-bar-inside,
+html.zs-light #zs-bar,
+html.zs-light #zs-bar.zs-bar-inline,
+html.zs-light #zs-bar.zs-bar-anchored,
+html.zs-light #zs-bar.zs-bar-inside {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 4px 6px 6px !important;
+  margin: 0 0 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.zs-bridge-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.2px;
+  user-select: none;
+}
+html.zs-light .zs-bridge-label {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.zs-target-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px 8px 3px 10px;
+  color: #e4e4e7;
+  font-size: 12px;
+  font-weight: 500;
+}
+html.zs-light .zs-target-wrap {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.10);
+  color: #27272a;
+}
+
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* overlay.css - snapgentV3 Free in-page UI. Scoped under #zs-root / .zs-* */
 
