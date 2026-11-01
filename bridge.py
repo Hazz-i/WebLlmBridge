@@ -869,6 +869,56 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                             else:
                                 answer = media_str
 
+                # Check if client requested streaming SSE
+                if req_json.get("stream"):
+                    resp_headers = (
+                        f"HTTP/1.1 200 OK\r\n"
+                        f"Content-Type: text/event-stream\r\n"
+                        f"Cache-Control: no-cache\r\n"
+                        f"Connection: keep-alive\r\n"
+                        f"{cors_headers}\r\n"
+                    ).encode("utf-8")
+                    writer.write(resp_headers)
+                    await writer.drain()
+
+                    chunk_id = f"chatcmpl-hermes-{int(time.time()*1000)}"
+                    # 1. Delta chunk
+                    chunk1 = {
+                        "id": chunk_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"role": "assistant", "content": answer},
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                    writer.write(f"data: {json.dumps(chunk1)}\n\n".encode("utf-8"))
+                    await writer.drain()
+
+                    # 2. Stop chunk
+                    chunk2 = {
+                        "id": chunk_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {},
+                                "finish_reason": "stop",
+                            }
+                        ],
+                    }
+                    writer.write(f"data: {json.dumps(chunk2)}\n\n".encode("utf-8"))
+                    writer.write(b"data: [DONE]\n\n")
+                    await writer.drain()
+                    writer.close()
+                    return
+
                 openai_response = {
                     "id": f"chatcmpl-hermes-{int(time.time()*1000)}",
                     "object": "chat.completion",
