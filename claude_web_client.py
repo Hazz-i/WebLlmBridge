@@ -14,6 +14,23 @@ from curl_cffi import requests
 TOKENS_PATH = Path(__file__).resolve().parent / "web_tokens.json"
 SCRATCH_DIR = Path("/home/wahid/.hermes/cache/scratch")
 SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
+LAST_REQUEST_FILE = SCRATCH_DIR / "claude_last_request.txt"
+MIN_COOLDOWN_SECONDS = 30.0
+
+def wait_for_cooldown():
+    now = time.time()
+    if LAST_REQUEST_FILE.exists():
+        try:
+            last_ts = float(LAST_REQUEST_FILE.read_text().strip())
+            elapsed = now - last_ts
+            if elapsed < MIN_COOLDOWN_SECONDS:
+                wait_sec = MIN_COOLDOWN_SECONDS - elapsed
+                print(f"[Claude Client] Cooldown active: waiting {wait_sec:.1f}s to avoid 429...")
+                time.sleep(wait_sec)
+        except Exception:
+            pass
+    LAST_REQUEST_FILE.write_text(str(time.time()))
+
 
 
 def load_tokens() -> dict:
@@ -131,12 +148,24 @@ def send_claude_web_chat(prompt: str, timeout: float = 120.0) -> str:
     if any(k in lower_prompt for k in ("gambar", "gambarkeun", "draw", "generate image", "buatkan gambar", "ilustrasi")):
         enhanced_prompt = f"{prompt}\n(Catatan: Jika menghasilkan gambar/vektor, tuliskan kode SVG utuh langsung di dalam blok kode ```xml ... ``` agar langsung di-render)."
 
+    wait_for_cooldown()
+    # Ambil parent leaf UUID agar percakapan bercabang dengan benar
+    parent_uuid = ""
+    try:
+        r_info = requests.get(f"https://claude.ai/api/organizations/{org_uuid}/chat_conversations/{conv_uuid}", cookies=cookies, impersonate="chrome124", timeout=10)
+        if r_info.status_code == 200:
+            parent_uuid = json.loads(r_info.text).get("current_leaf_message_uuid") or ""
+    except Exception:
+        pass
+
     payload = {
         "prompt": enhanced_prompt,
         "timezone": "Asia/Jakarta",
         "attachments": [],
         "files": [],
     }
+    if parent_uuid:
+        payload["parent_message_uuid"] = parent_uuid
 
     resp = requests.post(
         chat_url,
