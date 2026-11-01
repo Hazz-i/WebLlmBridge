@@ -355,7 +355,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     switch (msg.type) {
       case "hermes_chat_response":
-        send(msg).catch(() => {});
+        try {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(msg));
+          }
+        } catch (e) {
+          log("failed to forward hermes_chat_response to ws:", e);
+        }
         sendResponse({ ok: true });
         break;
       case "status":
