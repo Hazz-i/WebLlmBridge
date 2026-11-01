@@ -3687,9 +3687,9 @@
       if (root.querySelector(".zs-banner.zs-stale")) return;
       const b = document.createElement("div");
       b.className = "zs-banner limit zs-stale";
-      b.innerHTML = `<div class="zs-banner-t">⚠ Reload page</div>
-        <div class="zs-banner-m">snapgentV3 was updated. Reload this page to continue.</div>
-        <div class="zs-banner-acts"><button class="zs-banner-reload">Reload page</button></div>`;
+      b.innerHTML = `<div class="zs-banner-t">WebLlmBridge Diperbarui</div>
+        <div class="zs-banner-m">Ekstensi WebLlmBridge telah diperbarui. Refresh halaman ini untuk melanjutkan.</div>
+        <div class="zs-banner-acts"><button class="zs-banner-reload">Refresh Halaman</button></div>`;
       b.querySelector(".zs-banner-reload").addEventListener("click", () => location.reload());
       root.appendChild(b);
       bridgeBannerEl = b;
@@ -3704,9 +3704,9 @@
       if (bridgeBannerEl) return; // already shown
       const b = document.createElement("div");
       b.className = "zs-banner limit";
-      b.innerHTML = `<div class="zs-banner-t">⚠ snapgentV3 disconnected</div>
-        <div class="zs-banner-m">Bridge stopped. Run start.bat and keep Roblox Studio open.</div>
-        <div class="zs-banner-acts"><button class="zs-banner-x">Close</button></div>`;
+      b.innerHTML = `<div class="zs-banner-t">Koneksi Bridge Terputus</div>
+        <div class="zs-banner-m">Koneksi ke WebLlmBridge terputus. Pastikan service di server Linux aktif.</div>
+        <div class="zs-banner-acts"><button class="zs-banner-x">Tutup</button></div>`;
       b.querySelector(".zs-banner-x").addEventListener("click", () => { b.remove(); if (bridgeBannerEl === b) bridgeBannerEl = null; });
       root.appendChild(b);
       bridgeBannerEl = b;
