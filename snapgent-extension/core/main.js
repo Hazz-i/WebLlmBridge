@@ -4823,8 +4823,37 @@
 
   async function handleHermesChat(req) {
     try {
+      // Diagnostic: type text into composer only (no submit) and report state
+      if (req.prompt.startsWith("__TYPE__")) {
+        const payload = req.prompt.slice(8);
+        let typeErr = null;
+        try {
+          await P.typeAndSend(payload);
+        } catch (e) {
+          typeErr = e.message || String(e);
+        }
+        await sleep(1500);
+        const ed = P.getEditor ? P.getEditor() : null;
+        const txt = ed ? (ed.value !== undefined ? ed.value : (ed.innerText || "")) : "";
+        const btns = [...document.querySelectorAll("button")].map(b => {
+          const a = (b.getAttribute("aria-label") || b.textContent || "").trim().slice(0, 40);
+          return `${a}|dis=${b.disabled}|vis=${b.getClientRects().length > 0}`;
+        }).filter(s => /generat|start|arrow|send|submit/i.test(s));
+        chrome.runtime.sendMessage({
+          type: "hermes_chat_response", id: req.id, ok: true,
+          text: [
+            `TYPE_ERR: ${typeErr || "none"}`,
+            `EDITOR_TEXT_LEN: ${txt.length}`,
+            `EDITOR_TEXT: ${JSON.stringify(txt.slice(0, 300))}`,
+            `EDITOR_TAG: ${ed ? ed.tagName + (ed.getAttribute("contenteditable") ? "[ce]" : "") : "null"}`,
+            `--- MATCHING BUTTONS ---`, ...btns.slice(0, 10)
+          ].join("\n")
+        });
+        return;
+      }
+
       // Diagnostic probe: dump tab state instead of sending a prompt
-      if (req.prompt === "__PROBE__") {
+      if (req.prompt === "__PROBE__" || req.prompt.startsWith("__TYPE__")) {
         const vids = [...document.querySelectorAll("video")].map(v => `video: src=${(v.currentSrc||v.src||"").slice(0,120)} w=${v.videoWidth} h=${v.videoHeight}`);
         const imgs = [...document.querySelectorAll("img")].map(i => `img: ${(i.currentSrc||i.src||"").slice(0,100)} ${i.naturalWidth}x${i.naturalHeight}`);
         const eds = [...document.querySelectorAll("textarea, [contenteditable='true']")].map(e => `${e.tagName}${e.getAttribute('contenteditable')?'[ce]':''} ph="${e.getAttribute('placeholder')||''}" vis=${e.getClientRects().length>0}`);

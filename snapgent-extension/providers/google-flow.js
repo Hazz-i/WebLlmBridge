@@ -215,6 +215,15 @@ const ZSProvider = (() => {
       sendBtn.removeAttribute("disabled");
       sendBtn.disabled = false;
       console.log("[WebLlmBridge:flow] Clicking Google Flow submit button:", sendBtn.getAttribute("aria-label") || sendBtn.textContent);
+      // Dispatch PointerEvents and MouseEvents for Angular/React buttons
+      const rect = sendBtn.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const evtOpts = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y };
+      sendBtn.dispatchEvent(new PointerEvent("pointerdown", evtOpts));
+      sendBtn.dispatchEvent(new MouseEvent("mousedown", evtOpts));
+      sendBtn.dispatchEvent(new PointerEvent("pointerup", evtOpts));
+      sendBtn.dispatchEvent(new MouseEvent("mouseup", evtOpts));
       sendBtn.click();
     }
   }
