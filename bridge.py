@@ -865,24 +865,33 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                         except Exception as svg_err:
                             log(f"[Hermes HTTP] Failed to convert SVG {idx}: {svg_err}")
 
-                # Download images to local scratch and append MEDIA: tag for Telegram photo delivery
+                # Save images (base64 data URLs from Artifacts/Canvas or HTTP URLs from DALL-E)
                 if images:
+                    import base64
                     import urllib.request
                     for idx, img_url in enumerate(images):
                         try:
-                            fname = f"dalle_{int(time.time())}_{idx}.png"
+                            fname = f"artifact_{int(time.time())}_{idx}.png"
                             fpath = scratch_dir / fname
-                            req = urllib.request.Request(
-                                img_url,
-                                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-                            )
-                            with urllib.request.urlopen(req, timeout=35) as img_resp, open(fpath, "wb") as out_f:
-                                out_f.write(img_resp.read())
-                            media_tags.append(f"MEDIA:{fpath}")
-                            log(f"[Hermes HTTP] Downloaded generated DALL-E image to {fpath}")
+                            if img_url.startswith("data:image/"):
+                                # base64 data url from Claude Artifacts / Canvas / Blob
+                                header, b64_str = img_url.split(",", 1)
+                                fpath.write_bytes(base64.b64decode(b64_str))
+                                media_tags.append(f"MEDIA:{fpath}")
+                                log(f"[Hermes HTTP] Decoded base64 artifact image ({len(b64_str)} b64 chars) to {fpath}")
+                            elif img_url.startswith("http://") or img_url.startswith("https://"):
+                                req = urllib.request.Request(
+                                    img_url,
+                                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+                                )
+                                with urllib.request.urlopen(req, timeout=35) as img_resp, open(fpath, "wb") as out_f:
+                                    out_f.write(img_resp.read())
+                                media_tags.append(f"MEDIA:{fpath}")
+                                log(f"[Hermes HTTP] Downloaded generated image to {fpath}")
+                            else:
+                                log(f"[Hermes HTTP] Unsupported image URL format: {img_url[:60]}")
                         except Exception as img_err:
-                            log(f"[Hermes HTTP] Failed to download image {img_url}: {img_err}")
-                            media_tags.append(f"Image URL: {img_url}")
+                            log(f"[Hermes HTTP] Failed to process image {idx}: {img_err}")
 
                 if media_tags:
                     media_str = "\n".join(media_tags)

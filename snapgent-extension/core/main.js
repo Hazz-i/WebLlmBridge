@@ -97,7 +97,7 @@
     { name: "Mistral", url: "https://chat.mistral.ai/code" },
   ];
   const TARGET_STORAGE_KEY = "zsSelectedMcpTarget";
-  let selectedTargetId = "vscode";
+  let selectedTargetId = "hermes";
   try {
     chrome.storage.local.get(TARGET_STORAGE_KEY, (result) => {
       const saved = result && result[TARGET_STORAGE_KEY];
@@ -2807,7 +2807,6 @@
             <select id="zs-target" aria-label="MCP target" hidden tabindex="-1">
               <option value="hermes">Hermes Agent</option>
               <option value="vscode">VS Code</option>
-              <option value="roblox">Roblox Studio</option>
             </select>
             <button id="zs-target-btn" type="button" aria-haspopup="listbox" aria-label="Choose MCP target"><span id="zs-target-name"></span></button>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -2834,7 +2833,7 @@
         // Switching is always allowed (even while a session is running).
         // After the new target is persisted, reload the page so the whole
         // extension restarts cleanly against the newly selected MCP server.
-        selectedTargetId = targetSelect.value || "vscode";
+        selectedTargetId = targetSelect.value || "hermes";
         const reloadPage = () => { try { location.reload(); } catch {} };
         try {
           chrome.storage.local.set({ [TARGET_STORAGE_KEY]: selectedTargetId }, reloadPage);
@@ -2998,8 +2997,6 @@
       const options = [
         { id: "hermes", name: "Hermes Agent" },
         { id: "vscode", name: "VS Code" },
-        { id: "roblox", name: "Roblox Studio" },
-        { id: "effectcraft", name: "EffectCraft" },
         ...mergedMcpServers()
           .filter((server) => !["hermes", "vscode", "roblox", "effectcraft"].includes(server.id))
           .map((server) => ({ id: server.id, name: getTargetName(server.id) })),
@@ -3071,9 +3068,8 @@
     // ── MCP settings popup (toggle which servers are enabled) ───────────────
     function allMcpOptions() {
       const base = [
+        { id: "hermes", name: "Hermes Agent" },
         { id: "vscode", name: "VS Code" },
-        { id: "roblox", name: "Roblox Studio" },
-        { id: "effectcraft", name: "EffectCraft" },
       ];
       const extra = mergedMcpServers()
         .filter((s) => !base.some((b) => b.id === s.id))
@@ -3477,8 +3473,12 @@
         }
         if (selectedTargetId === "roblox") disabled = !bridgeOk && !addonOk;
       } else {
-        toneClass = "noagent";
-        msg = `No agent. Open a new chat.`;
+        toneClass = A.bridge && A.bridge.connected ? "active" : "standby";
+        msg = A.bridge && A.bridge.connected
+          ? `<b>Hermes Bridge Active</b> · Listening`
+          : `Hermes Bridge · Standby`;
+        label = A.bridge && A.bridge.connected ? `⚡ Live` : `▶︎ Start`;
+        kind = "start";
       }
       // Parked on visibility: the loop is alive but deliberately frozen because
       // this tab is not the foreground tab of its window. Say so explicitly -
@@ -3519,7 +3519,15 @@
       bar.classList.add(`tone-${toneClass}`);
       stateEl.innerHTML = indicator + `<span class="zs-state-txt">${msg}</span>`;
       stateEl.classList.toggle("zs-state-warn", warn);
-      actionBtn.textContent = label;
+      if (label.includes("▶︎") || label.includes("▶")) {
+        const cleanTxt = label.replace(/[▶︎▶]/g, "").trim();
+        actionBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:5px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>${cleanTxt}`;
+      } else if (label.includes("⚡")) {
+        const cleanTxt = label.replace(/⚡/g, "").trim();
+        actionBtn.innerHTML = `<span class="zs-dot-live"></span>${cleanTxt}`;
+      } else {
+        actionBtn.textContent = label;
+      }
       actionBtn.dataset.kind = kind;
       actionBtn.disabled = disabled;
       // The Stop button replaces the action button while the agent is busy.
@@ -4916,47 +4924,112 @@
         }
       }
 
-      // Extract final assistant turn reply, images (img), and vector illustrations (svg)
+      // Extract final assistant turn reply, images (img/canvas/blob), and vector illustrations (svg)
       const finalRes = P.readAssistant ? P.readAssistant() : null;
       let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
       const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
       const images = [];
       const svgs = [];
 
+      // Helper to convert blob: URLs or canvas to data:image/png;base64 URLs
+      const toDataUrl = async (url) => {
+        if (!url) return null;
+        if (url.startsWith("data:image/")) return url;
+        if (url.startsWith("blob:")) {
+          try {
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            return null;
+          }
+        }
+        return url;
+      };
+
+      // 1. Check all <canvas> elements across page (Artifacts illustration / PNG generator)
+      document.querySelectorAll("canvas").forEach((canvas) => {
+        try {
+          if (canvas.width >= 60 && canvas.height >= 60) {
+            const durl = canvas.toDataURL("image/png");
+            if (durl && durl.length > 500 && !images.includes(durl)) {
+              images.push(durl);
+            }
+          }
+        } catch (e) {}
+      });
+
+      // 2. Check <img> elements in lastItem AND Artifact panels
+      const candidateImgs = [
+        ...(lastItem ? lastItem.querySelectorAll("img") : []),
+        ...document.querySelectorAll('[data-testid*="artifact"] img, [class*="artifact"] img, aside img, .artifact-viewer img, [class*="preview"] img')
+      ];
+      for (const img of candidateImgs) {
+        const src = img.currentSrc || img.src || img.getAttribute("src");
+        if (src && !src.startsWith("data:image/svg") && !src.includes("avatar") && !src.includes("profile") && !src.includes("icon")) {
+          const resolved = await toDataUrl(src);
+          if (resolved && !images.includes(resolved)) {
+            images.push(resolved);
+          }
+        }
+      }
+
+      // 3. Check download links for generated PNG / JPG artifacts
+      const downloadLinks = document.querySelectorAll('a[download*="png" i], a[download*="jpg" i], a[download*="jpeg" i], a[href*="blob:"]');
+      for (const a of downloadLinks) {
+        const href = a.href || a.getAttribute("href");
+        if (href && (href.startsWith("blob:") || href.startsWith("data:image/"))) {
+          const resolved = await toDataUrl(href);
+          if (resolved && !images.includes(resolved)) {
+            images.push(resolved);
+          }
+        }
+      }
+
+      // 4. Extract SVG vector illustrations from lastItem and Artifact panels
+      const serializer = new XMLSerializer();
+      const svgCandidates = [
+        ...(lastItem ? lastItem.querySelectorAll("svg") : []),
+        ...document.querySelectorAll('[data-testid*="artifact"] svg, [class*="artifact"] svg, aside svg, .artifact-viewer svg')
+      ];
+      svgCandidates.forEach((svg) => {
+        const viewBox = svg.getAttribute("viewBox") || "";
+        const isIcon = viewBox.includes("0 0 24 24") || viewBox.includes("0 0 16 16") || viewBox.includes("0 0 20 20");
+        if (!isIcon) {
+          const s = serializer.serializeToString(svg);
+          if (!svgs.includes(s)) svgs.push(s);
+        }
+      });
+
+      // 5. Also check raw SVG code blocks in pre/code
       if (lastItem) {
-        // 1. Extract standard images (ChatGPT DALL-E, etc.)
-        lastItem.querySelectorAll("img").forEach((img) => {
-          const src = img.currentSrc || img.src || img.getAttribute("src");
-          if (src && !src.startsWith("data:image/svg") && !src.includes("avatar") && !src.includes("profile")) {
-            images.push(src);
-          }
-        });
-
-        // 2. Extract SVG elements inside lastItem (Claude vector illustration / artifacts)
-        const serializer = new XMLSerializer();
-        lastItem.querySelectorAll("svg").forEach((svg) => {
-          const viewBox = svg.getAttribute("viewBox") || "";
-          const isIcon = viewBox.includes("0 0 24 24") || viewBox.includes("0 0 16 16") || viewBox.includes("0 0 20 20");
-          if (!isIcon) {
-            svgs.push(serializer.serializeToString(svg));
-          }
-        });
-
-        // 3. Extract raw SVG code blocks in pre/code
         lastItem.querySelectorAll("pre, code").forEach((c) => {
           const m = (c.textContent || "").match(/<svg[\s\S]*?<\/svg>/i);
-          if (m) svgs.push(m[0]);
+          if (m && !svgs.includes(m[0])) svgs.push(m[0]);
         });
       }
 
-      // 4. Also check iframes in page (Claude artifact preview panel)
+      // 6. Also check iframes in page (Claude artifact preview panel)
       document.querySelectorAll("iframe").forEach((frame) => {
         try {
           const doc = frame.contentDocument || frame.contentWindow.document;
           if (doc) {
-            const serializer = new XMLSerializer();
             doc.querySelectorAll("svg").forEach((svg) => {
-              svgs.push(serializer.serializeToString(svg));
+              const s = serializer.serializeToString(svg);
+              if (!svgs.includes(s)) svgs.push(s);
+            });
+            doc.querySelectorAll("canvas").forEach((canvas) => {
+              try {
+                if (canvas.width >= 60 && canvas.height >= 60) {
+                  const durl = canvas.toDataURL("image/png");
+                  if (durl && durl.length > 500 && !images.includes(durl)) images.push(durl);
+                }
+              } catch (e) {}
             });
           }
         } catch (e) {}
