@@ -169,65 +169,59 @@ const ZSProvider = (() => {
     }
     await sleep(300);
 
-    // Google Flow send action:
-    // 1. First dispatch real Enter key events directly on the editor (Flow triggers on Enter)
-    const enterOpts = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
-    ed.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
-    ed.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
-    ed.dispatchEvent(new KeyboardEvent("keyup", enterOpts));
-    await sleep(200);
+    // Google Flow send action — ONLY click the real generation button.
+    // Dispatching Enter on the composer submits to the chat agent instead of
+    // starting a generation, so we never do that here.
+    await sleep(400);
 
-    // 2. Also search for any submit/arrow/send button in the composer card
-    let sendBtn = null;
-    let curr = ed;
-    for (let i = 0; i < 6 && curr && curr !== document.body; i++) {
-      const candidates = curr.querySelectorAll('button, [role="button"]');
-      for (const b of candidates) {
-        if (b.closest("#zs-root") || b.disabled) continue;
-        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
-        const hasSvg = !!b.querySelector("svg");
-        if (aria.includes("send") || aria.includes("submit") || aria.includes("create") || hasSvg) {
-          if (visible(b)) {
-            sendBtn = b;
-            break;
-          }
-        }
+    const pickBtn = () => {
+      const btns = [...document.querySelectorAll("button")].filter(
+        (b) => !b.closest("#zs-root") && visible(b)
+      );
+      // Priority 1: exact generation trigger
+      for (const b of btns) {
+        const aria = (b.getAttribute("aria-label") || "").trim().toLowerCase();
+        const txt = (b.textContent || "").trim().toLowerCase();
+        if (aria === "start generation" || aria === "generate" || txt === "arrow_forward") return b;
       }
-      if (sendBtn) break;
-      curr = curr.parentElement;
-    }
+      // Priority 2: any aria containing generation wording
+      for (const b of btns) {
+        const aria = (b.getAttribute("aria-label") || "").trim().toLowerCase();
+        if (aria.includes("start generation") || aria.includes("generate")) return b;
+      }
+      // Priority 3: submit/send
+      for (const b of btns) {
+        const aria = (b.getAttribute("aria-label") || "").trim().toLowerCase();
+        if (aria.includes("send") || aria.includes("submit")) return b;
+      }
+      return null;
+    };
 
+    let sendBtn = pickBtn();
     if (!sendBtn || sendBtn.disabled) {
-      // Direct search across DOM for the exact Google Flow generation button
-      const allBtns = document.querySelectorAll("button");
-      for (const b of allBtns) {
-        if (b.closest("#zs-root")) continue;
-        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
-        const txt = (b.textContent || "").toLowerCase();
-        if (aria.includes("start generation") || txt.includes("start generation") || txt.includes("arrow_forward")) {
-          sendBtn = b;
-          break;
-        }
-      }
-    }
-
-    // Google Flow submit button has icon arrow_forward or aria-label Start generation
-    let arrowBtn = document.querySelector('button:has(span.material-symbols-outlined), button:has(i), button:has(svg)');
-    const allButtons = [...document.querySelectorAll('button')];
-    for (const b of allButtons) {
-      const txt = (b.textContent || '').trim().toLowerCase();
-      const aria = (b.getAttribute('aria-label') || '').toLowerCase();
-      if (txt === 'arrow_forward' || aria.includes('start generation') || aria.includes('send') || aria.includes('submit')) {
-        sendBtn = b;
-        break;
-      }
+      await sleep(600);
+      sendBtn = pickBtn();
     }
 
     if (sendBtn) {
-      console.log("[WebLlmBridge:flow] FOUND SUBMIT BUTTON:", sendBtn);
-      sendBtn.removeAttribute("disabled");
-      sendBtn.disabled = false;
+      log("clicking generation button:", sendBtn.getAttribute("aria-label") || sendBtn.textContent.trim().slice(0, 30));
+      if (sendBtn.disabled) {
+        sendBtn.removeAttribute("disabled");
+        sendBtn.disabled = false;
+      }
+      const rect = sendBtn.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const opts = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, view: window };
+      try {
+        sendBtn.dispatchEvent(new PointerEvent("pointerdown", opts));
+        sendBtn.dispatchEvent(new MouseEvent("mousedown", opts));
+        sendBtn.dispatchEvent(new PointerEvent("pointerup", opts));
+        sendBtn.dispatchEvent(new MouseEvent("mouseup", opts));
+      } catch (e) {}
       sendBtn.click();
+    } else {
+      log("no generation button found in composer");
     }
   }
 
