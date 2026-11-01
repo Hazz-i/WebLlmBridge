@@ -4915,24 +4915,25 @@
       const svgs = [];
       capturedBlobs.length = 0; // reset for next request
 
-      // Helper to convert blob: URLs or canvas to data:image/png;base64 URLs
+      // Helper to convert blob: URLs to data:image/png;base64 URLs, or pass http(s) URLs directly to Python bridge
       const toDataUrl = async (url) => {
         if (!url) return null;
         if (url.startsWith("data:image/")) return url;
-        if (url.startsWith("blob:") || url.startsWith("http")) {
+        if (url.startsWith("blob:")) {
           try {
             const resp = await fetch(url);
             const blob = await resp.blob();
             return new Promise((resolve) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => resolve(null);
+              reader.onerror = () => resolve(url);
               reader.readAsDataURL(blob);
             });
           } catch (e) {
-            return null;
+            return url;
           }
         }
+        // For http/https URLs (e.g. ChatGPT DALL-E files.oaiusercontent.com), pass raw URL directly so Python urllib downloads it without CORS block
         return url;
       };
 

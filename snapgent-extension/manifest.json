@@ -29,7 +29,8 @@
     "ws://127.0.0.1/*",
     "ws://100.89.132.121/*",
     "https://*.claudemcpcontent.com/*",
-    "https://claude.site/*"
+    "https://claude.site/*",
+    "https://*.oaiusercontent.com/*"
   ],
   "background": {
     "service_worker": "background.js"
