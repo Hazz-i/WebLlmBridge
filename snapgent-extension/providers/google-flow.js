@@ -166,33 +166,37 @@ const ZSProvider = (() => {
     }
     await sleep(300);
 
-    // Try finding send / submit button near the editor
+    // Google Flow send action:
+    // 1. First dispatch real Enter key events directly on the editor (Flow triggers on Enter)
+    const enterOpts = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
+    ed.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
+    ed.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
+    ed.dispatchEvent(new KeyboardEvent("keyup", enterOpts));
+    await sleep(200);
+
+    // 2. Also search for any submit/arrow/send button in the composer card
     let sendBtn = null;
     let curr = ed;
-    for (let i = 0; i < 5 && curr && curr !== document.body; i++) {
-      sendBtn = curr.querySelector('button:not([disabled]):has(svg), button[type="submit"]:not([disabled]), button[aria-label*="send" i]:not([disabled]), button[aria-label*="submit" i]:not([disabled])');
-      if (sendBtn && visible(sendBtn)) break;
+    for (let i = 0; i < 6 && curr && curr !== document.body; i++) {
+      const candidates = curr.querySelectorAll('button, [role="button"]');
+      for (const b of candidates) {
+        if (b.closest("#zs-root") || b.disabled) continue;
+        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+        const hasSvg = !!b.querySelector("svg");
+        if (aria.includes("send") || aria.includes("submit") || aria.includes("create") || hasSvg) {
+          if (visible(b)) {
+            sendBtn = b;
+            break;
+          }
+        }
+      }
+      if (sendBtn) break;
       curr = curr.parentElement;
     }
 
-    if (!sendBtn) {
-      const allBtns = document.querySelectorAll(S.send);
-      for (const b of allBtns) {
-        if (visible(b) && !b.disabled && !b.closest("#zs-root")) {
-          sendBtn = b;
-          break;
-        }
-      }
-    }
-
     if (sendBtn && visible(sendBtn) && !sendBtn.disabled) {
+      log("Clicking Google Flow send button:", sendBtn);
       sendBtn.click();
-    } else {
-      // Fallback: send Enter keydown with keyCode 13
-      const enterDown = new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true });
-      ed.dispatchEvent(enterDown);
-      const enterUp = new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true });
-      ed.dispatchEvent(enterUp);
     }
   }
 
