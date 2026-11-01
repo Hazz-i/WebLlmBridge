@@ -59,13 +59,17 @@
   box-shadow: none !important;
 }
 
-/* Clean, natural Hermes Bridge bar: STRICT 1 FLAT ROW, no stacking, no wrapping */
+/* Clean, natural Hermes Bridge bar: Mounted ABOVE the chat input card in all AIs, aligned right, 1 flat row */
 #zs-bar,
 #zs-bar.zs-bar-inline,
 #zs-bar.zs-bar-anchored,
 #zs-bar.zs-bar-inside,
 #zs-bar.zs-prov-chatgpt,
+#zs-bar.zs-prov-claude,
+#zs-bar.zs-prov-deepseek,
 .zs-site-chatgpt #zs-bar,
+.zs-site-claude #zs-bar,
+.zs-site-deepseek #zs-bar,
 html.zs-light #zs-bar,
 html.zs-light #zs-bar.zs-bar-inline,
 html.zs-light #zs-bar.zs-bar-anchored,
@@ -75,18 +79,19 @@ html.zs-light #zs-bar.zs-bar-inside {
   box-shadow: none !important;
   backdrop-filter: none !important;
   padding: 0 4px !important;
-  margin: 0 !important;
-  display: inline-flex !important;
+  margin: 0 0 6px auto !important;
+  display: flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   white-space: nowrap !important;
   align-items: center !important;
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
   gap: 8px !important;
-  width: auto !important;
-  height: 32px !important;
+  width: 100% !important;
+  height: 28px !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  z-index: 10 !important;
 }
 
 #zs-bar * {

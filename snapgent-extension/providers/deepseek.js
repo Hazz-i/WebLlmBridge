@@ -258,11 +258,8 @@ const ZSProvider = (() => {
     }
     if (!box || box === document.body) box = ta.parentElement;
     if (!box) return null;
-    // Insert before the first REAL child (skip our own bar if already mounted,
-    // otherwise we'd try to insert the bar before itself every frame).
-    let before = box.firstElementChild;
-    if (before && before.id === "zs-bar") before = before.nextElementSibling;
-    return { parent: box, before, inside: true }; // lives INSIDE the input box
+    // Mount ABOVE the composer card
+    return { parent: box.parentElement, before: box, inside: false };
   }
 
   // ── Composer mode: pick Expert (most powerful) at startup, Search OFF ──

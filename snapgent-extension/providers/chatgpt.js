@@ -322,40 +322,21 @@ const ZSProvider = (() => {
   }
 
   function barMount() {
-    // 1. Prioritize mounting right beside the "Think" button in ChatGPT tools row
-    const thinkBtn = [...document.querySelectorAll("button")].find((b) => {
-      const t = (b.textContent || "").trim().toLowerCase();
-      const aria = (b.getAttribute("aria-label") || "").toLowerCase();
-      const tid = (b.getAttribute("data-testid") || "").toLowerCase();
-      return t === "think" || aria.includes("think") || tid.includes("reasoning") || tid.includes("think");
-    });
-    if (thinkBtn && thinkBtn.parentElement) {
-      const bar = document.getElementById("zs-bar");
-      if (bar) bar.style.gridArea = "";
-      return { parent: thinkBtn.parentElement, before: thinkBtn.nextElementSibling, inside: true };
-    }
-
-    // 2. Fallback to tools strip with the attach (+) button
-    const attachBtn = document.querySelector('button[aria-label*="Attach" i], button[data-testid*="attach" i], [aria-label*="Upload" i]');
-    if (attachBtn && attachBtn.parentElement) {
-      const bar = document.getElementById("zs-bar");
-      if (bar) bar.style.gridArea = "";
-      return { parent: attachBtn.parentElement, before: null, inside: true };
-    }
-
-    // 3. Fallback to composer card surface
     const ed = getEditor();
     if (!ed) return null;
-    const box = ed.closest("[class*='composer-surface']");
-    if (!box) return null;
-    const area = topArea(box);
-    if (area) {
-      const bar = document.getElementById("zs-bar");
-      if (bar && bar.style.gridArea !== area) bar.style.gridArea = area;
+    // Mount ABOVE the entire composer surface card
+    let outer = ed.closest("form") || ed.closest("[class*='composer-surface']") || ed.parentElement;
+    for (let el = ed, i = 0; el && el !== document.body && i < 10; el = el.parentElement, i++) {
+      if (el.tagName.toLowerCase() === "form" || (el.className && typeof el.className === "string" && el.className.includes("composer-surface"))) {
+        outer = el;
+      }
     }
-    let before = box.firstElementChild;
-    if (before && before.id === "zs-bar") before = before.nextElementSibling;
-    return { parent: box, before, inside: true };
+    if (outer && outer.parentElement) {
+      const bar = document.getElementById("zs-bar");
+      if (bar) bar.style.gridArea = "";
+      return { parent: outer.parentElement, before: outer, inside: false };
+    }
+    return null;
   }
 
   function barAnchor() {

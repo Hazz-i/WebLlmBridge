@@ -111,20 +111,22 @@ const ZSProvider = (() => {
     return editor && (editor.closest("form") || editor.parentElement);
   };
   const barMount = () => {
-    const frame = composerFrame();
-    // Mount ABOVE the whole composer card (outside it) so the bar never overlaps
-    // the editor's absolutely-positioned placeholder ("Reply"). The card is the
-    // nearest ancestor of the editor with a visible border and a large radius.
-    let card = frame;
     const editor = getEditor();
-    for (let el = editor, i = 0; el && el !== document.body && i < 12; el = el.parentElement, i++) {
-      const cs = getComputedStyle(el);
-      if (parseFloat(cs.borderTopLeftRadius) >= 16 && parseFloat(cs.borderTopWidth) > 0) {
-        card = el;
-        break;
+    if (!editor) return null;
+    // Walk up to find the outermost composer box (above the entire input card)
+    let outer = editor.closest("form");
+    if (!outer) {
+      for (let el = editor, i = 0; el && el !== document.body && i < 10; el = el.parentElement, i++) {
+        if (el.tagName.toLowerCase() === "form" || (el.className && typeof el.className === "string" && (el.className.includes("relative") && (el.className.includes("w-full") || el.className.includes("max-w-"))))) {
+          outer = el;
+        }
       }
     }
-    return card && card.parentElement ? { parent: card.parentElement, before: card } : null;
+    if (!outer) outer = editor.closest('[class*="composer"]') || editor.parentElement;
+    if (outer && outer.parentElement) {
+      return { parent: outer.parentElement, before: outer, inside: false };
+    }
+    return null;
   };
 
   const ids = new WeakMap();
