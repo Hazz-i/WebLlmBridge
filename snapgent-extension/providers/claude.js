@@ -50,6 +50,18 @@ const ZSProvider = (() => {
     if (!root) return "";
     const skip = [".zs-chip", S.thinking, ".sr-only", "button", "[aria-hidden='true']", excludeSel].filter(Boolean).join(",");
     let text = "";
+    const breakLine = (extra = false) => {
+      if (!text) return;
+      if (extra) {
+        if (!text.endsWith("\n\n")) {
+          if (text.endsWith("\n")) text += "\n";
+          else text += "\n\n";
+        }
+      } else {
+        if (!text.endsWith("\n")) text += "\n";
+      }
+    };
+
     const visit = (node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         text += node.nodeValue || "";
@@ -57,10 +69,51 @@ const ZSProvider = (() => {
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       if (node.matches(skip)) return;
+
+      const tag = node.tagName.toUpperCase();
+      if (tag === "BR") { text += "\n"; return; }
+
+      if (tag === "OL" || tag === "UL") {
+        breakLine(true);
+        let idx = 1;
+        for (const child of node.children) {
+          if (child.tagName.toUpperCase() === "LI") {
+            breakLine();
+            if (tag === "OL") {
+              const startVal = node.getAttribute("start");
+              const num = startVal ? (parseInt(startVal, 10) + idx - 1) : idx;
+              text += `${num}. `;
+              idx++;
+            } else {
+              text += "- ";
+            }
+            visit(child);
+            breakLine();
+          } else {
+            visit(child);
+          }
+        }
+        breakLine(true);
+        return;
+      }
+
+      const isHeading = /^H[1-6]$/.test(tag);
+      const isParagraph = tag === "P" || tag === "BLOCKQUOTE";
+      if (isHeading || isParagraph) {
+        breakLine(true);
+        for (const child of node.childNodes) visit(child);
+        breakLine(true);
+        return;
+      }
+
+      const isBlock = /^(?:DIV|PRE|TABLE|TR|SECTION|ARTICLE|HR)$/.test(tag);
+      if (isBlock) breakLine();
       for (const child of node.childNodes) visit(child);
+      if (isBlock) breakLine();
     };
+
     visit(root);
-    return text;
+    return text.replace(/\n{3,}/g, "\n\n").trim();
   };
 
   const isAssistantItem = (item) => !!item &&

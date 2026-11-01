@@ -161,14 +161,25 @@ const ZSProvider = (() => {
     if (!root) return "";
     syncCM(root);
     let t = "";
-    const breakLine = () => { if (t && !t.endsWith("\n")) t += "\n"; };
+    const breakLine = (extra = false) => {
+      if (!t) return;
+      if (extra) {
+        if (!t.endsWith("\n\n")) {
+          if (t.endsWith("\n")) t += "\n";
+          else t += "\n\n";
+        }
+      } else {
+        if (!t.endsWith("\n")) t += "\n";
+      }
+    };
+
     const walk = (n) => {
       if (n.nodeType === 3) { t += n.nodeValue; return; }
       if (n.nodeType !== 1) return;
       if (excludeSel && n.matches && n.matches(excludeSel)) return;
       if (n.tagName === "BR") { t += "\n"; return; }
-      // The editor's TRUE document, published by the MAIN-world tap. This is the
-      // only complete source for a long block - take it and skip the subtree.
+
+      // CodeMirror blocks
       if (n.classList && n.classList.contains("cm-content")) {
         const full = n.getAttribute("data-zs-cm");
         if (full !== null) {
@@ -181,22 +192,58 @@ const ZSProvider = (() => {
           _cmWarned = true;
           diag("cm.noTap", { note: "chatgpt-cm.js not loaded; long code blocks may be truncated" });
         }
-        // fall through to the .cm-line walk below
       }
-      // One CodeMirror line = one source line, ALWAYS terminated - an empty
-      // .cm-line is a blank line in the source and must not be swallowed.
       if (n.classList && n.classList.contains("cm-line")) {
         for (const c of n.childNodes) walk(c);
         t += "\n";
         return;
       }
-      const isBlock = BLOCK_TAGS.test(n.tagName);
+
+      const tag = n.tagName.toUpperCase();
+
+      // Ordered and Unordered lists
+      if (tag === "OL" || tag === "UL") {
+        breakLine(true);
+        let idx = 1;
+        for (const child of n.children) {
+          if (child.tagName.toUpperCase() === "LI") {
+            breakLine();
+            if (tag === "OL") {
+              const startVal = n.getAttribute("start");
+              const num = startVal ? (parseInt(startVal, 10) + idx - 1) : idx;
+              t += `${num}. `;
+              idx++;
+            } else {
+              t += "- ";
+            }
+            walk(child);
+            breakLine();
+          } else {
+            walk(child);
+          }
+        }
+        breakLine(true);
+        return;
+      }
+
+      // Paragraphs, headers, blockquotes
+      const isHeading = /^H[1-6]$/.test(tag);
+      const isParagraph = tag === "P" || tag === "BLOCKQUOTE";
+      if (isHeading || isParagraph) {
+        breakLine(true);
+        for (const c of n.childNodes) walk(c);
+        breakLine(true);
+        return;
+      }
+
+      const isBlock = BLOCK_TAGS.test(tag);
       if (isBlock) breakLine();
       for (const c of n.childNodes) walk(c);
       if (isBlock) breakLine();
     };
+
     walk(root);
-    return t;
+    return t.replace(/\n{3,}/g, "\n\n").trim();
   }
 
   // Non-reasoning reply text only: join the .markdown container(s). Reasoning
