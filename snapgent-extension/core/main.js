@@ -4823,6 +4823,29 @@
 
   async function handleHermesChat(req) {
     try {
+      // Diagnostic probe: dump tab state instead of sending a prompt
+      if (req.prompt === "__PROBE__") {
+        const vids = [...document.querySelectorAll("video")].map(v => `video: src=${(v.currentSrc||v.src||"").slice(0,120)} w=${v.videoWidth} h=${v.videoHeight}`);
+        const imgs = [...document.querySelectorAll("img")].map(i => `img: ${(i.currentSrc||i.src||"").slice(0,100)} ${i.naturalWidth}x${i.naturalHeight}`);
+        const eds = [...document.querySelectorAll("textarea, [contenteditable='true']")].map(e => `${e.tagName}${e.getAttribute('contenteditable')?'[ce]':''} ph="${e.getAttribute('placeholder')||''}" vis=${e.getClientRects().length>0}`);
+        const btns = [...document.querySelectorAll("button")].slice(0, 40).map(b => `btn: "${(b.getAttribute('aria-label')||b.textContent||'').trim().slice(0,40)}" disabled=${b.disabled}`);
+        chrome.runtime.sendMessage({
+          type: "hermes_chat_response", id: req.id, ok: true,
+          text: [
+            `URL: ${location.href}`,
+            `PROVIDER: ${P.id}`,
+            `TITLE: ${document.title}`,
+            `BODY_LEN: ${(document.body.innerText||"").length}`,
+            `--- VIDEO (${vids.length}) ---`, ...vids.slice(0,10),
+            `--- IMG (${imgs.length}) ---`, ...imgs.slice(0,10),
+            `--- EDITORS (${eds.length}) ---`, ...eds.slice(0,10),
+            `--- BUTTONS (${btns.length}) ---`, ...btns.slice(0,25),
+            `--- TEXT HEAD ---`, (document.body.innerText||"").slice(0,800)
+          ].join("\n")
+        });
+        return;
+      }
+
       if (P.isGenerating && P.isGenerating()) {
         chrome.runtime.sendMessage({
           type: "hermes_chat_response",

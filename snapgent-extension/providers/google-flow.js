@@ -4,6 +4,7 @@
 const ZSProvider = (() => {
   "use strict";
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  
   let diag = () => {};
   let locked = false;
   let lockedEditor = null;
@@ -195,7 +196,7 @@ const ZSProvider = (() => {
     }
 
     if (sendBtn && visible(sendBtn) && !sendBtn.disabled) {
-      log("Clicking Google Flow send button:", sendBtn);
+      console.log("[WebLlmBridge:flow] Clicking Google Flow send button:", sendBtn);
       sendBtn.click();
     }
   }
