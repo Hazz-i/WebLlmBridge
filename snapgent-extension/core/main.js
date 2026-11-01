@@ -4878,47 +4878,48 @@
         await P.ensureComposerReady();
       }
 
-      const sent = await P.typeAndSend(req.prompt);
-      if (!sent && sent !== undefined) {
-        throw new Error("Failed to click send button in composer.");
-      }
+      const baseAssistants = P.assistantCount ? P.assistantCount() : 0;
+      log("sending Hermes chat prompt to", P.displayName || P.id);
+      await P.typeAndSend(req.prompt);
 
-      // Wait for generation to start (up to 8s)
+      // Wait for generation to start or assistant count to increase
       const startWait = Date.now();
-      while (P.isGenerating && !P.isGenerating() && Date.now() - startWait < 8000) {
+      while (Date.now() - startWait < 12000) {
+        if ((P.isGenerating && P.isGenerating()) || (P.assistantCount && P.assistantCount() > baseAssistants)) {
+          break;
+        }
         await sleep(300);
       }
 
-      // Wait for generation to finish (up to 300s)
+      // Wait for generation to finish
       const maxWait = P.timings && P.timings.RESPONSE_TIMEOUT_MS ? P.timings.RESPONSE_TIMEOUT_MS : 300000;
       const genStart = Date.now();
-      let lastLen = 0;
+      let lastText = "";
       let stableCount = 0;
 
       while (Date.now() - genStart < maxWait) {
         await sleep(500);
-        if (P.isGenerating && !P.isGenerating()) {
-          const curLen = P.streamLen ? P.streamLen() : 0;
-          if (curLen === lastLen && curLen > 0) {
+        const isGen = P.isGenerating ? P.isGenerating() : false;
+        if (!isGen) {
+          const res = P.readAssistant ? P.readAssistant() : null;
+          const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
+          if (curText && curText === lastText) {
             stableCount++;
             if (stableCount >= 2) break;
           } else {
-            lastLen = curLen;
+            lastText = curText;
             stableCount = 0;
           }
-          if (stableCount >= 2) break;
         }
       }
 
-      // Read final assistant turn
-      const lastItem = P.lastAssistant ? P.lastAssistant() : null;
-      let replyText = "";
+      // Extract final assistant turn reply and images
+      const finalRes = P.readAssistant ? P.readAssistant() : null;
+      let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
+      const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
       const images = [];
-      if (lastItem) {
-        if (P.readAssistant) replyText = P.readAssistant(lastItem);
-        if (!replyText && P.itemText) replyText = P.itemText(lastItem);
 
-        // Extract any generated images (DALL-E in ChatGPT / etc.)
+      if (lastItem) {
         const imgElements = lastItem.querySelectorAll("img");
         imgElements.forEach((img) => {
           const src = img.currentSrc || img.src || img.getAttribute("src");
@@ -4928,7 +4929,7 @@
         });
       }
 
-      log("Hermes chat complete, reply length:", (replyText || "").length, "images:", images.length);
+      log("Hermes chat complete, reply length:", replyText.length, "images:", images.length);
 
       chrome.runtime.sendMessage({
         type: "hermes_chat_response",
