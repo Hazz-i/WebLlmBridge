@@ -132,31 +132,49 @@ const ZSProvider = (() => {
     if (!ed) throw new Error("Google Flow editor not found");
 
     ed.focus();
-    if (ed.tagName.toLowerCase() === "textarea" || ed.tagName.toLowerCase() === "input") {
-      ed.value = text;
-      ed.dispatchEvent(new Event("input", { bubbles: true }));
-      ed.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      ed.textContent = text;
-      ed.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-    }
-    await sleep(300);
+    // React / Angular input value setter to trigger internal component state update
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      ed.tagName.toLowerCase() === "textarea" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+      "value"
+    )?.set;
 
-    // Try finding send button
-    let sendBtn = null;
-    const parent = ed.closest("form") || ed.parentElement?.parentElement;
-    if (parent) {
-      sendBtn = parent.querySelector('button[type="submit"], button[aria-label*="send" i], button:has(svg)');
+    if (nativeSetter) {
+      nativeSetter.call(ed, text);
+    } else {
+      ed.value = text;
     }
+
+    ed.dispatchEvent(new Event("input", { bubbles: true }));
+    ed.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(200);
+
+    // Try finding send / submit button near the editor
+    let sendBtn = null;
+    let curr = ed;
+    for (let i = 0; i < 5 && curr && curr !== document.body; i++) {
+      sendBtn = curr.querySelector('button:not([disabled]):has(svg), button[type="submit"]:not([disabled]), button[aria-label*="send" i]:not([disabled]), button[aria-label*="submit" i]:not([disabled])');
+      if (sendBtn && visible(sendBtn)) break;
+      curr = curr.parentElement;
+    }
+
     if (!sendBtn) {
-      sendBtn = document.querySelector(S.send);
+      const allBtns = document.querySelectorAll(S.send);
+      for (const b of allBtns) {
+        if (visible(b) && !b.disabled && !b.closest("#zs-root")) {
+          sendBtn = b;
+          break;
+        }
+      }
     }
 
     if (sendBtn && visible(sendBtn) && !sendBtn.disabled) {
       sendBtn.click();
     } else {
-      ed.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
-      ed.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+      // Fallback: send Enter keydown with keyCode 13
+      const enterDown = new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true });
+      ed.dispatchEvent(enterDown);
+      const enterUp = new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true });
+      ed.dispatchEvent(enterUp);
     }
   }
 
