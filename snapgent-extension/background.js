@@ -214,12 +214,19 @@ async function refreshStudioStatus() {
 }
 
 
-function isProviderTab(tab) {
-  if (!tab || !tab.url) return false;
+function isProviderTab(tab, model) {
+  if (!tab) return false;
+  const url = tab.url || "";
+  if (model === "web-claude") {
+    return url.includes("claude.ai");
+  }
+  if (model === "web-chatgpt") {
+    return url.includes("chatgpt.com") || url.includes("openai.com");
+  }
   return PROVIDER_URLS.some((u) => {
     const reg = new RegExp("^" + u.replace(/\*/g, ".*") + "$");
-    return reg.test(tab.url);
-  });
+    return reg.test(url);
+  }) || url.includes("claude.ai") || url.includes("chatgpt.com");
 }
 
 function forwardToTab(tabId, msg) {
@@ -236,19 +243,19 @@ function handleBridgeMessage(msg) {
   // ── Hermes Web-to-API Bridge routing ──────────────────────────────────────
   if (msg.type === "hermes_chat_request") {
     log("received hermes_chat_request for model:", msg.model, "id:", msg.id);
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      let targetTab = tabs[0];
-      if (targetTab && isProviderTab(targetTab)) {
+    chrome.tabs.query({}, (allTabs) => {
+      const targetTab = allTabs.find((t) => isProviderTab(t, msg.model)) || allTabs.find((t) => isProviderTab(t));
+      if (targetTab) {
+        log("forwarding to tab:", targetTab.id, targetTab.url);
         forwardToTab(targetTab.id, msg);
       } else {
-        chrome.tabs.query({}, (allTabs) => {
-          const found = allTabs.find(isProviderTab);
-          if (found) {
-            forwardToTab(found.id, msg);
-          } else {
-            send({ type: "hermes_chat_response", id: msg.id, ok: false, error: "No active Claude / ChatGPT / Gemini tab found in browser." }).catch(() => {});
-          }
-        });
+        log("no provider tab found among open tabs");
+        send({
+          type: "hermes_chat_response",
+          id: msg.id,
+          ok: false,
+          error: "Tab Claude.ai atau ChatGPT belum terbuka di browser PC Gantenk. Silakan buka tab claude.ai atau chatgpt.com."
+        }).catch(() => {});
       }
     });
     return;

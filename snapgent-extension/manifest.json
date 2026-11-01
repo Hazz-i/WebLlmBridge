@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "Hazz-i <wahidh697@gmail.com>",
   "description": "Turn ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, GLM, Qwen, Arena, Meta AI, Ptero or Mistral into an OpenAI-compatible API for Hermes Agent through a local bridge.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
     "https://deepseek.com/*",
@@ -23,7 +23,8 @@
     "https://grok.com/*",
     "https://chat.mistral.ai/*",
     "http://127.0.0.1/*",
-    "ws://127.0.0.1/*"
+    "ws://127.0.0.1/*",
+    "ws://100.89.132.121/*"
   ],
   "background": {
     "service_worker": "background.js"
