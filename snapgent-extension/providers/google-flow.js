@@ -132,15 +132,16 @@ const ZSProvider = (() => {
     if (!ed) throw new Error("Google Flow editor not found");
 
     ed.focus();
-    // React / Angular input value setter to trigger internal component state update
-    const nativeSetter = Object.getOwnPropertyDescriptor(
-      ed.tagName.toLowerCase() === "textarea" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
-      "value"
-    )?.set;
-
-    if (nativeSetter) {
-      nativeSetter.call(ed, text);
-    } else {
+    // Robust value assignment across DOM environments (avoid Illegal Invocation)
+    try {
+      const proto = ed instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) {
+        setter.call(ed, text);
+      } else {
+        ed.value = text;
+      }
+    } catch (e) {
       ed.value = text;
     }
 
