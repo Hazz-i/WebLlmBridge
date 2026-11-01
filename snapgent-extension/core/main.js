@@ -4838,6 +4838,12 @@
 
       const baseAssistantId = P.lastAssistantId ? P.lastAssistantId() : null;
       const baseAssistants = P.assistantCount ? P.assistantCount() : 0;
+      // Snapshot pre-existing images so we only capture NEW images generated in this turn!
+      const preExistingImgs = new Set();
+      document.querySelectorAll("img").forEach(im => {
+        const s = im.currentSrc || im.src || im.getAttribute("src");
+        if (s) preExistingImgs.add(s);
+      });
       log("sending Hermes chat prompt to", P.displayName || P.id);
       await P.typeAndSend(req.prompt);
 
@@ -4937,12 +4943,12 @@
         return url;
       };
 
-      // 1. Scan images inside lastItem, or check recent assistant turns for generated images
+      // 1. Scan images inside the active lastItem
       const turnImgs = lastItem ? lastItem.querySelectorAll("img") : [];
       for (const img of turnImgs) {
         const src = img.currentSrc || img.src || img.getAttribute("src") || "";
         const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("icon");
-        if (src && !isAvatar) {
+        if (src && !isAvatar && !preExistingImgs.has(src)) {
           const resolved = await toDataUrl(src);
           if (resolved && !images.includes(resolved)) {
             images.push(resolved);
@@ -4950,41 +4956,22 @@
         }
       }
 
-      // If no image in immediate turn, scan recent assistant turns (e.g. DALL-E image generated right before)
-      if (images.length === 0) {
-        const assistantTurns = [...document.querySelectorAll('div[data-message-author-role="assistant"], div[data-is-streaming="false"]')].reverse();
-        for (const item of assistantTurns) {
-          const imgs = item.querySelectorAll("img");
-          for (const img of imgs) {
-            const src = img.currentSrc || img.src || img.getAttribute("src") || "";
-            const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("icon");
-            if (src && !isAvatar && (img.naturalWidth >= 100 || img.width >= 100 || src.includes("oaiusercontent") || src.includes("blob:"))) {
-              const resolved = await toDataUrl(src);
-              if (resolved && !images.includes(resolved)) {
-                images.push(resolved);
-                break;
-              }
-            }
-          }
-          if (images.length > 0) break;
-        }
-      }
-
-      // Global fallback: any large img in the page (ChatGPT DALL-E renders outside message bubbles)
+      // 2. Only check for NEW images that appeared during THIS turn (diff against preExistingImgs)
       if (images.length === 0) {
         const allImgs = [...document.querySelectorAll("img")].reverse();
         for (const img of allImgs) {
           const src = img.currentSrc || img.src || img.getAttribute("src") || "";
-          if (!src) continue;
+          if (!src || preExistingImgs.has(src)) continue;
           const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("/icon");
           if (isAvatar) continue;
-          const big = (img.naturalWidth || 0) >= 200 || (img.width || 0) >= 200 || src.startsWith("blob:") || src.includes("oaiusercontent");
-          if (!big) continue;
-          const resolved = await toDataUrl(src);
-          if (resolved && !images.includes(resolved)) {
-            log("Global img fallback captured:", src.slice(0, 80), img.naturalWidth, "x", img.naturalHeight);
-            images.push(resolved);
-            break;
+          const big = (img.naturalWidth || 0) >= 150 || (img.width || 0) >= 150 || src.startsWith("blob:") || src.includes("oaiusercontent");
+          if (big) {
+            const resolved = await toDataUrl(src);
+            if (resolved && !images.includes(resolved)) {
+              log("New image generated in this turn captured:", src.slice(0, 80));
+              images.push(resolved);
+              break;
+            }
           }
         }
       }
