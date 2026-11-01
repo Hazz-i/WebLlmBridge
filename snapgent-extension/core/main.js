@@ -5038,7 +5038,24 @@
         } catch (e) {}
       });
 
-      log("Hermes chat complete, reply length:", replyText.length, "images:", images.length, "svgs:", svgs.length);
+      const debugTags = [];
+      document.querySelectorAll('img, canvas, svg, iframe, a[download], [data-testid*="artifact"], [data-testid*="visual"]').forEach((el) => {
+        const tid = el.getAttribute('data-testid') || '';
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'img') {
+          debugTags.push(`img: src=${(el.src || '').slice(0, 100)} w=${el.width} h=${el.height}`);
+        } else if (tag === 'canvas') {
+          debugTags.push(`canvas: w=${el.width} h=${el.height}`);
+        } else if (tag === 'svg') {
+          debugTags.push(`svg: w=${el.clientWidth} h=${el.clientHeight} vb=${el.getAttribute('viewBox')}`);
+        } else if (tag === 'iframe') {
+          debugTags.push(`iframe: src=${el.src}`);
+        } else if (tid) {
+          debugTags.push(`testid: ${tid}`);
+        }
+      });
+
+      log("Hermes chat complete, reply length:", replyText.length, "images:", images.length, "svgs:", svgs.length, "debugTags:", debugTags.length);
 
       chrome.runtime.sendMessage({
         type: "hermes_chat_response",
@@ -5046,7 +5063,8 @@
         ok: true,
         text: replyText || ((images.length > 0 || svgs.length > 0) ? "Berikut gambar yang digenerate:" : "(Empty response from model)"),
         images: images,
-        svgs: svgs
+        svgs: svgs,
+        debug_tags: debugTags
       });
     } catch (err) {
       log("Hermes chat error:", err);
