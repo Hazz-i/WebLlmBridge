@@ -18,20 +18,7 @@ LAST_REQUEST_FILE = SCRATCH_DIR / "claude_last_request.txt"
 MIN_COOLDOWN_SECONDS = 30.0
 
 def wait_for_cooldown():
-    now = time.time()
-    if LAST_REQUEST_FILE.exists():
-        try:
-            last_ts = float(LAST_REQUEST_FILE.read_text().strip())
-            elapsed = now - last_ts
-            if elapsed < MIN_COOLDOWN_SECONDS:
-                wait_sec = MIN_COOLDOWN_SECONDS - elapsed
-                print(f"[Claude Client] Cooldown active: waiting {wait_sec:.1f}s to avoid 429...")
-                time.sleep(wait_sec)
-        except Exception:
-            pass
-    LAST_REQUEST_FILE.write_text(str(time.time()))
-
-
+    pass
 
 def load_tokens() -> dict:
     if not TOKENS_PATH.exists():
@@ -148,15 +135,19 @@ def send_claude_web_chat(prompt: str, timeout: float = 120.0) -> str:
     if any(k in lower_prompt for k in ("gambar", "gambarkeun", "draw", "generate image", "buatkan gambar", "ilustrasi")):
         enhanced_prompt = f"{prompt}\n(Catatan: Jika menghasilkan gambar/vektor, tuliskan kode SVG utuh langsung di dalam blok kode ```xml ... ``` agar langsung di-render)."
 
-    wait_for_cooldown()
-    # Ambil parent leaf UUID agar percakapan bercabang dengan benar
+    # Ambil parent leaf UUID dari percakapan aktif
     parent_uuid = ""
     try:
         r_info = requests.get(f"https://claude.ai/api/organizations/{org_uuid}/chat_conversations/{conv_uuid}", cookies=cookies, impersonate="chrome124", timeout=10)
         if r_info.status_code == 200:
-            parent_uuid = json.loads(r_info.text).get("current_leaf_message_uuid") or ""
-    except Exception:
-        pass
+            info_data = json.loads(r_info.text)
+            parent_uuid = info_data.get("current_leaf_message_uuid") or ""
+            if not parent_uuid:
+                msgs = info_data.get("chat_messages", [])
+                if msgs:
+                    parent_uuid = msgs[-1].get("uuid", "")
+    except Exception as e:
+        print("[Claude Client] Failed to fetch parent leaf UUID:", e)
 
     payload = {
         "prompt": enhanced_prompt,
@@ -177,16 +168,23 @@ def send_claude_web_chat(prompt: str, timeout: float = 120.0) -> str:
         stream=True,
     )
 
-    # Jika sesi lama kedaluwarsa atau terhapus di web, buatkan sesi baru dan coba lagi sekali
+    # Jika sesi lama tidak valid (404 atau 400), buatkan percakapan baru dan kirim tanpa parent_message_uuid lama
     if resp.status_code in (404, 400):
+        print(f"[Claude Client] Conversation {conv_uuid} returned {resp.status_code}. Creating fresh session...")
         conv_uuid = create_new_claude_conversation(org_uuid, session_key, title="Hermes Main Session")
         tokens["active_claude_conv_uuid"] = conv_uuid
         save_tokens(tokens)
         chat_url = f"https://claude.ai/api/organizations/{org_uuid}/chat_conversations/{conv_uuid}/completion"
         headers["Referer"] = f"https://claude.ai/chat/{conv_uuid}"
+        payload_fresh = {
+            "prompt": enhanced_prompt,
+            "timezone": "Asia/Jakarta",
+            "attachments": [],
+            "files": [],
+        }
         resp = requests.post(
             chat_url,
-            json=payload,
+            json=payload_fresh,
             cookies=cookies,
             headers=headers,
             impersonate="chrome124",
@@ -208,8 +206,9 @@ def send_claude_web_chat(prompt: str, timeout: float = 120.0) -> str:
         )
 
     if resp.status_code != 200:
+        print(f"[Claude Client] ERROR: HTTP {resp.status_code} - {resp.text}")
         if resp.status_code == 429:
-            raise RuntimeError("Akun Claude web lu sedang terkena batas pesan (Rate Limit / Cooldown dari Anthropic). Silakan tunggu 1-2 menit lalu coba lagi.")
+            raise RuntimeError(f"Claude returned 429: {resp.text}")
         raise RuntimeError(f"Claude Web mengembalikan status HTTP {resp.status_code}: {resp.text}")
 
     full_reply = []

@@ -818,56 +818,50 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
             log(f"[Hermes HTTP] Received chat request ({len(full_prompt)} chars) for model: {model}")
 
             try:
-                if model in ("web-claude", "claude"):
-                    from claude_web_client import send_claude_web_chat
-                    try:
-                        answer = await asyncio.to_thread(send_claude_web_chat, full_prompt, 120.0)
-                    except Exception as claude_err:
-                        err_str = str(claude_err)
-                        log(f"[Hermes HTTP] Claude client error: {err_str}")
-                        # Return friendly message directly instead of 500 so Hermes doesn't hang in retry loop
-                        answer = f"⚠️ {err_str}"
-                else:
+                # Forward to connected local browser extension
+                try:
                     bridge_resp = await bridge.request_hermes_chat(full_prompt, model=model, timeout=300.0)
-                    if not bridge_resp.get("ok"):
-                        err_msg = bridge_resp.get("error", "Unknown browser bridge error.")
-                        err_b = json.dumps({"error": {"message": err_msg, "type": "bridge_error"}}).encode("utf-8")
-                        writer.write(f"HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {len(err_b)}\r\n{cors_headers}\r\n".encode("utf-8") + err_b)
-                        await writer.drain()
-                        writer.close()
-                        return
+                except Exception as client_err:
+                    err_str = str(client_err)
+                    log(f"[Hermes HTTP] Browser bridge error: {err_str}")
+                    answer = f"⚠️ Browser lokal di PC Gantenk belum terhubung.\nSilakan buka browser Chrome di PC Gantenk dengan ekstensi WebLlmBridge aktif dan buka tab Claude.ai / ChatGPT."
+                    bridge_resp = {"ok": True, "text": answer}
 
+                if not bridge_resp.get("ok"):
+                    answer = f"⚠️ {bridge_resp.get('error', 'Unknown browser bridge error.')}"
+                else:
                     answer = bridge_resp.get("text", "")
-                    images = bridge_resp.get("images", [])
+                
+                images = bridge_resp.get("images", [])
 
-                    # Download images to local scratch and append MEDIA: tag for Telegram photo delivery
-                    if images:
-                        scratch_dir = Path(os.path.expanduser("~/.hermes/cache/scratch"))
-                        scratch_dir.mkdir(parents=True, exist_ok=True)
-                        media_tags = []
-                        import urllib.request
-                        for idx, img_url in enumerate(images):
-                            try:
-                                fname = f"dalle_{int(time.time())}_{idx}.png"
-                                fpath = scratch_dir / fname
-                                req = urllib.request.Request(
-                                    img_url,
-                                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-                                )
-                                with urllib.request.urlopen(req, timeout=35) as img_resp, open(fpath, "wb") as out_f:
-                                    out_f.write(img_resp.read())
-                                media_tags.append(f"MEDIA:{fpath}")
-                                log(f"[Hermes HTTP] Downloaded generated DALL-E image to {fpath}")
-                            except Exception as img_err:
-                                log(f"[Hermes HTTP] Failed to download image {img_url}: {img_err}")
-                                media_tags.append(f"Image URL: {img_url}")
+                # Download images to local scratch and append MEDIA: tag for Telegram photo delivery
+                if images:
+                    scratch_dir = Path(os.path.expanduser("~/.hermes/cache/scratch"))
+                    scratch_dir.mkdir(parents=True, exist_ok=True)
+                    media_tags = []
+                    import urllib.request
+                    for idx, img_url in enumerate(images):
+                        try:
+                            fname = f"dalle_{int(time.time())}_{idx}.png"
+                            fpath = scratch_dir / fname
+                            req = urllib.request.Request(
+                                img_url,
+                                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+                            )
+                            with urllib.request.urlopen(req, timeout=35) as img_resp, open(fpath, "wb") as out_f:
+                                out_f.write(img_resp.read())
+                            media_tags.append(f"MEDIA:{fpath}")
+                            log(f"[Hermes HTTP] Downloaded generated DALL-E image to {fpath}")
+                        except Exception as img_err:
+                            log(f"[Hermes HTTP] Failed to download image {img_url}: {img_err}")
+                            media_tags.append(f"Image URL: {img_url}")
 
-                        if media_tags:
-                            media_str = "\n".join(media_tags)
-                            if answer and answer.strip() not in ("", "Berikut gambar yang digenerate:"):
-                                answer = f"{answer}\n\n{media_str}"
-                            else:
-                                answer = media_str
+                    if media_tags:
+                        media_str = "\n".join(media_tags)
+                        if answer and answer.strip() not in ("", "Berikut gambar yang digenerate:"):
+                            answer = f"{answer}\n\n{media_str}"
+                        else:
+                            answer = media_str
 
                 # Check if client requested streaming SSE
                 if req_json.get("stream"):

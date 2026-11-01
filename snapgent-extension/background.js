@@ -8,7 +8,7 @@
 // even when the bridge is offline. The agentic loop must never hang waiting.
 
 const PORT = 17613;
-const URLS = [`ws://127.0.0.1:${PORT}`, `ws://172.17.0.1:${PORT}`];
+const URLS = [`ws://127.0.0.1:${PORT}`, `ws://100.89.132.121:${PORT}`, `ws://172.17.0.1:${PORT}`];
 let urlIndex = 0;
 
 // Chat sites where a snapgentV3 provider content script runs. Status pushes go
