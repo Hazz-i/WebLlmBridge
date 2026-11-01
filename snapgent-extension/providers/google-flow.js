@@ -21,6 +21,8 @@ const ZSProvider = (() => {
       'input[type="text"][placeholder*="create" i]'
     ].join(","),
     send: [
+      'button[aria-label*="Start generation" i]',
+      'button[aria-label*="Generate" i]',
       'button[aria-label*="Send" i]',
       'button[aria-label*="Submit" i]',
       'button[data-testid*="send" i]',
@@ -195,8 +197,24 @@ const ZSProvider = (() => {
       curr = curr.parentElement;
     }
 
-    if (sendBtn && visible(sendBtn) && !sendBtn.disabled) {
-      console.log("[WebLlmBridge:flow] Clicking Google Flow send button:", sendBtn);
+    if (!sendBtn || sendBtn.disabled) {
+      // Direct search across DOM for the exact Google Flow generation button
+      const allBtns = document.querySelectorAll("button");
+      for (const b of allBtns) {
+        if (b.closest("#zs-root")) continue;
+        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+        const txt = (b.textContent || "").toLowerCase();
+        if (aria.includes("start generation") || txt.includes("start generation") || txt.includes("arrow_forward")) {
+          sendBtn = b;
+          break;
+        }
+      }
+    }
+
+    if (sendBtn) {
+      sendBtn.removeAttribute("disabled");
+      sendBtn.disabled = false;
+      console.log("[WebLlmBridge:flow] Clicking Google Flow submit button:", sendBtn.getAttribute("aria-label") || sendBtn.textContent);
       sendBtn.click();
     }
   }
