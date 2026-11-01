@@ -3105,107 +3105,69 @@
         }));
     }
 
-    // ── Skills settings popup (toggle which workspace skills are listed) ────
+    // ── Skills settings popup (Hermes Agent skills loaded from server) ────
     function openSkillsSettings() {
       const old = document.getElementById("zs-mcp-pop");
       if (old) old.remove();
       const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const pop = document.createElement("div");
       pop.id = "zs-mcp-pop";
-      let mode = "list"; // "list" | "paste" | "review"
-      let draft = "";
-      let importMsg = "";
-      const renderImport = () => {
-        const v = mode === "review" ? validateSkillText(draft) : null;
-        const body = mode === "paste"
-          ? `<input type="file" id="zs-skill-file" accept=".md,.txt,text/markdown,text/plain" style="margin-bottom:6px;font-size:11px;max-width:100%">` +
-            `<textarea id="zs-skill-text" rows="10" style="width:100%;box-sizing:border-box;font:11px ui-monospace,Consolas,monospace;background:transparent;color:inherit;border:1px solid rgba(128,128,128,.4);border-radius:6px;padding:6px" placeholder="Paste the full SKILL.md here (with --- name / description --- frontmatter)">${esc(draft)}</textarea>` +
-            `<div class="zs-mcp-pop-note" style="color:#ff6b6b">${esc(importMsg)}</div>` +
-            `<div style="display:flex;gap:8px;margin-top:8px"><button id="zs-skill-cancel" class="zs-gear" style="flex:1">Cancel</button><button id="zs-skill-review" class="zs-gear" style="flex:1">Review</button></div>`
-          : `<div class="zs-mcp-pop-note" style="color:#ffb454">Review carefully. Third-party skills can contain instructions that make the AI run commands or change files. It will be saved DISABLED until you turn it on.</div>` +
-            `<div class="zs-mcp-pop-note"><b>${esc(v.name || "")}</b> - ${esc(v.description || "")}</div>` +
-            `<pre style="max-height:220px;overflow:auto;white-space:pre-wrap;font:11px ui-monospace,Consolas,monospace;border:1px solid rgba(128,128,128,.4);border-radius:6px;padding:6px;margin:6px 0">${esc(draft)}</pre>` +
-            `<div class="zs-mcp-pop-note" style="color:#ff6b6b">${esc(importMsg)}</div>` +
-            `<div style="display:flex;gap:8px;margin-top:8px"><button id="zs-skill-back" class="zs-gear" style="flex:1">Back</button><button id="zs-skill-global" class="zs-gear" style="flex:1">Save to global</button><button id="zs-skill-confirm" class="zs-gear" style="flex:1">Confirm import</button></div>`;
-        pop.innerHTML =
-          `<div class="zs-mcp-pop-card" role="dialog" aria-label="Import skill">` +
-            `<div class="zs-mcp-pop-head"><span>Import skill</span><button class="zs-mcp-pop-close" aria-label="Close">&#10005;</button></div>` +
-            body + `</div>`;
-        pop.querySelector(".zs-mcp-pop-close").addEventListener("click", () => pop.remove());
-        const fileInput = pop.querySelector("#zs-skill-file");
-        if (fileInput) fileInput.addEventListener("change", () => {
-          const f = fileInput.files && fileInput.files[0];
-          if (!f) return;
-          if (f.size > SKILL_MAX_BYTES) { importMsg = "File too large (max 20 KB)."; renderImport(); return; }
-          const reader = new FileReader();
-          reader.onload = () => {
-            draft = String(reader.result || "");
-            importMsg = "";
-            renderImport();
-          };
-          reader.onerror = () => { importMsg = "Could not read the file."; renderImport(); };
-          reader.readAsText(f);
-        });
-        const on = (id, fn) => { const el = pop.querySelector(id); if (el) el.addEventListener("click", fn); };
-        on("#zs-skill-cancel", () => { mode = "list"; importMsg = ""; draft = ""; render(); });
-        on("#zs-skill-review", () => {
-          draft = pop.querySelector("#zs-skill-text").value;
-          const chk = validateSkillText(draft);
-          if (!chk.ok) { importMsg = chk.error; renderImport(); return; }
-          if (allSkills.some((s) => s.name === chk.name)) { importMsg = `A skill named "${chk.name}" already exists.`; renderImport(); return; }
-          importMsg = ""; mode = "review"; renderImport();
-        });
-        on("#zs-skill-back", () => { mode = "paste"; importMsg = ""; renderImport(); });
-        on("#zs-skill-global", () => {
-          const res = saveGlobalSkill(draft);
-          if (!res.ok) { importMsg = res.error; renderImport(); return; }
-          mode = "list"; draft = ""; importMsg = "";
-          render();
-        });
-        on("#zs-skill-confirm", async () => {
-          const res = await importSkillText(draft);
-          if (!res.ok) { importMsg = res.error; renderImport(); return; }
-          mode = "list"; draft = ""; importMsg = "";
-          await loadWorkspaceSkills();
-          if (pop.isConnected) render();
-        });
-      };
+      let filterQuery = "";
+
       const render = () => {
-        if (mode !== "list") { renderImport(); return; }
-        const rows = allSkills.length
-          ? allSkills.map((s) => `<label class="zs-mcp-row"><span class="zs-mcp-row-info"><span class="zs-mcp-row-name">${esc(s.name)}</span><span class="zs-mcp-row-meta">${esc(s.description)}</span></span><input type="checkbox" class="zs-mcp-check" data-name="${esc(s.name)}" ${isSkillEnabled(s.name) ? "checked" : ""}><span class="zs-mcp-toggle"></span></label>`).join("")
-          : `<div class="zs-mcp-pop-note">No skills loaded from Hermes Agent yet. Ensure bridge is connected.</div>`;
+        const filtered = allSkills.filter((s) => {
+          if (!filterQuery) return true;
+          const q = filterQuery.toLowerCase();
+          return s.name.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q));
+        });
+
+        const rows = filtered.length
+          ? filtered.map((s) => `<label class="zs-mcp-row"><span class="zs-mcp-row-info"><span class="zs-mcp-row-name">${esc(s.name)}</span><span class="zs-mcp-row-meta">${esc(s.description || "")}</span></span><input type="checkbox" class="zs-mcp-check" data-name="${esc(s.name)}" ${isSkillEnabled(s.name) ? "checked" : ""}><span class="zs-mcp-toggle"></span></label>`).join("")
+          : `<div class="zs-mcp-pop-note" style="text-align:center;padding:16px 0">${allSkills.length === 0 ? "Loading skills from Hermes Agent..." : "No matching skills found."}</div>`;
+
         pop.innerHTML =
-          `<div class="zs-mcp-pop-card" role="dialog" aria-label="Skills settings">` +
-            `<div class="zs-mcp-pop-head"><span>Skills</span><button class="zs-mcp-pop-close" aria-label="Close">&#10005;</button></div>` +
-            `<div class="zs-mcp-pop-note">Only enabled skills are listed in the prompt. Changes apply to the next chat session.</div>` +
-            `<div class="zs-mcp-pop-list">${rows}</div>` +
-            `<div class="zs-mcp-pop-note" style="margin-top:10px"><b>Global library</b> (stored in this browser; install into a workspace to use)</div>` +
-            (Object.keys(globalSkills).length
-              ? Object.keys(globalSkills).map((n) => `<div class="zs-mcp-row"><span class="zs-mcp-row-info"><span class="zs-mcp-row-name">${esc(n)}</span><span class="zs-mcp-row-meta">${esc(globalSkills[n].description)}</span></span><button class="zs-gear zs-gskill-install" data-name="${esc(n)}">Install</button><button class="zs-gear zs-gskill-del" data-name="${esc(n)}">Delete</button></div>`).join("")
-              : `<div class="zs-mcp-pop-note">Empty. Use "Save to global" while reviewing an import.</div>`) +
-            `<div style="margin-top:8px"><button id="zs-skill-import" class="zs-gear" style="width:100%">+ Import skill</button></div>` +
+          `<div class="zs-mcp-pop-card" role="dialog" aria-label="Hermes Skills">` +
+            `<div class="zs-mcp-pop-head"><span>Hermes Skills (${allSkills.length})</span><button class="zs-mcp-pop-close" aria-label="Close">&#10005;</button></div>` +
+            `<div class="zs-mcp-pop-note" style="margin-bottom:10px">Active skills loaded from Hermes Agent on Linux server. Toggle skills to enable or disable in your session.</div>` +
+            `<input type="text" id="zs-skill-search" placeholder="Search skills..." value="${esc(filterQuery)}" style="width:100%;box-sizing:border-box;height:36px;padding:0 12px;margin-bottom:12px;background:rgba(255,255,255,0.06);border:none;border-radius:9px;color:#ececee;font-size:12.5px;outline:none;">` +
+            `<div class="zs-mcp-pop-list" style="max-height:340px;overflow-y:auto;padding-right:4px">${rows}</div>` +
+            `<div style="margin-top:14px"><button id="zs-skill-close-btn" style="width:100%;height:38px;background:#ffffff;color:#09090b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">Close</button></div>` +
           `</div>`;
+
         pop.querySelector(".zs-mcp-pop-close").addEventListener("click", () => pop.remove());
-        pop.querySelectorAll(".zs-gskill-install").forEach((b) => b.addEventListener("click", () => {
-          const g = globalSkills[b.dataset.name];
-          if (!g) return;
-          draft = g.text; importMsg = "";
-          if (allSkills.some((s) => s.name === b.dataset.name)) { importMsg = `A skill named "${b.dataset.name}" already exists in this workspace.`; }
-          mode = "review"; render();
-        }));
-        pop.querySelectorAll(".zs-gskill-del").forEach((b) => b.addEventListener("click", () => {
-          removeGlobalSkill(b.dataset.name); render();
-        }));
-        const impBtn = pop.querySelector("#zs-skill-import");
-        if (impBtn) impBtn.addEventListener("click", () => { mode = "paste"; draft = ""; importMsg = ""; render(); });
+        const closeBtn = pop.querySelector("#zs-skill-close-btn");
+        if (closeBtn) closeBtn.addEventListener("click", () => pop.remove());
+
+        const searchInp = pop.querySelector("#zs-skill-search");
+        if (searchInp) {
+          searchInp.addEventListener("input", (e) => {
+            filterQuery = e.target.value;
+            const listEl = pop.querySelector(".zs-mcp-pop-list");
+            if (listEl) {
+              const f = allSkills.filter((s) => {
+                if (!filterQuery) return true;
+                const q = filterQuery.toLowerCase();
+                return s.name.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q));
+              });
+              listEl.innerHTML = f.length
+                ? f.map((s) => `<label class="zs-mcp-row"><span class="zs-mcp-row-info"><span class="zs-mcp-row-name">${esc(s.name)}</span><span class="zs-mcp-row-meta">${esc(s.description || "")}</span></span><input type="checkbox" class="zs-mcp-check" data-name="${esc(s.name)}" ${isSkillEnabled(s.name) ? "checked" : ""}><span class="zs-mcp-toggle"></span></label>`).join("")
+                : `<div class="zs-mcp-pop-note" style="text-align:center;padding:16px 0">No matching skills found.</div>`;
+              listEl.querySelectorAll(".zs-mcp-check").forEach((box) =>
+                box.addEventListener("change", () => setSkillEnabled(box.dataset.name, box.checked)));
+            }
+          });
+        }
+
         pop.querySelectorAll(".zs-mcp-check").forEach((box) =>
           box.addEventListener("change", () => setSkillEnabled(box.dataset.name, box.checked)));
       };
+
       pop.addEventListener("click", (e) => { if (e.target === pop) pop.remove(); });
       document.documentElement.appendChild(pop);
       render();
-      if (selectedTargetId === "vscode") loadWorkspaceSkills().then(() => { if (pop.isConnected) render(); });
+
+      // Load Hermes skills immediately and re-render
+      loadWorkspaceSkills().then(() => { if (pop.isConnected) render(); });
     }
 
     function buildMenu() {
