@@ -4872,14 +4872,35 @@
         const curCount = P.assistantCount ? P.assistantCount() : 0;
         const isGen = P.isGenerating ? P.isGenerating() : false;
 
-        // Ensure we are inspecting the NEW turn, never the old previous turn!
-        const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants;
+        // DALL-E image generation or text completion
+        const res = P.readAssistant ? P.readAssistant() : null;
+        const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
+        const turnItem = (res && res.item) || (P.lastAssistant ? P.lastAssistant() : null);
+        
+        // Detect if a newly generated image just rendered in DOM!
+        let newlyRenderedImg = false;
+        const allImgsNow = document.querySelectorAll("img");
+        for (const im of allImgsNow) {
+          const s = im.currentSrc || im.src || im.getAttribute("src");
+          if (s && !preExistingImgs.has(s) && !s.includes("avatar") && !s.includes("profile")) {
+            newlyRenderedImg = true;
+            break;
+          }
+        }
+
+        const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants || newlyRenderedImg;
 
         if (isNewTurn) {
           const res = P.readAssistant ? P.readAssistant() : null;
           const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
           
-          if (!isGen) {
+          if (newlyRenderedImg) {
+            stableCount++;
+            if (stableCount >= 2) {
+              log("New generated image detected and DOM stabilized -> finishing turn!");
+              break;
+            }
+          } else if (!isGen) {
             if (curText && curText === lastText) {
               stableCount++;
               if (stableCount >= 2) break; // Settled and not generating
