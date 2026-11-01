@@ -86,6 +86,7 @@
     { name: "ChatGPT", url: "https://chatgpt.com/" },
     { name: "Claude", url: "https://claude.ai/new" },
     { name: "Gemini", url: "https://gemini.google.com/app" },
+    { name: "Google Flow", url: "https://flow.google.com/" },
   ];
   const TARGET_STORAGE_KEY = "zsSelectedMcpTarget";
 

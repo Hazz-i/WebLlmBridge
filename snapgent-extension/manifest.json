@@ -13,7 +13,8 @@
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "http://127.0.0.1/*",
-    "https://claude.site/*"
+    "https://claude.site/*",
+    "https://flow.google.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -110,6 +111,21 @@
         "artifacts.js"
       ],
       "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://flow.google.com/*"
+      ],
+      "js": [
+        "core/config.js",
+        "core/parser.js",
+        "providers/google-flow.js",
+        "core/main.js"
+      ],
+      "css": [
+        "overlay.css"
+      ],
       "run_at": "document_idle"
     }
   ]
