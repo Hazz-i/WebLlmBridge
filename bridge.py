@@ -279,6 +279,33 @@ class MCPServer:
             raise
 
 
+def load_hermes_skills() -> List[Dict[str, Any]]:
+    skills_dir = Path("/home/wahid/.hermes/skills")
+    skills = []
+    if not skills_dir.exists():
+        return skills
+    for p in skills_dir.glob("**/SKILL.md"):
+        if ".archive" in str(p):
+            continue
+        try:
+            content = p.read_text(encoding="utf-8")
+            fm_match = re.search(r"^---\s*\r?\n(.*?)\r?\n---", content, re.DOTALL)
+            if fm_match:
+                fm = fm_match.group(1)
+                name_match = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
+                desc_match = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE)
+                name = name_match.group(1).strip().strip("'\"") if name_match else p.parent.name
+                desc = desc_match.group(1).strip().strip("'\"") if desc_match else ""
+                skills.append({
+                    "name": name,
+                    "description": desc,
+                    "path": str(p)
+                })
+        except Exception:
+            pass
+    return sorted(skills, key=lambda x: x["name"])
+
+
 class Bridge:
     def __init__(self) -> None:
         self.servers: Dict[str, MCPServer] = {}
@@ -368,32 +395,6 @@ class Bridge:
         log(f"configured {len(self.servers)} MCP server(s): {ids}  (active: {active})")
         total = len(self._catalog)
         log(f"ready {total} tools available ({len(self.servers)} MCP server(s))")
-
-def load_hermes_skills() -> List[Dict[str, Any]]:
-    skills_dir = Path("/home/wahid/.hermes/skills")
-    skills = []
-    if not skills_dir.exists():
-        return skills
-    for p in skills_dir.glob("**/SKILL.md"):
-        if ".archive" in str(p):
-            continue
-        try:
-            content = p.read_text(encoding="utf-8")
-            fm_match = re.search(r"^---\s*\r?\n(.*?)\r?\n---", content, re.DOTALL)
-            if fm_match:
-                fm = fm_match.group(1)
-                name_match = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
-                desc_match = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE)
-                name = name_match.group(1).strip().strip("'\"") if name_match else p.parent.name
-                desc = desc_match.group(1).strip().strip("'\"") if desc_match else ""
-                skills.append({
-                    "name": name,
-                    "description": desc,
-                    "path": str(p)
-                })
-        except Exception:
-            pass
-    return sorted(skills, key=lambda x: x["name"])
 
     def _connected_message(self) -> Dict[str, Any]:
         return {
