@@ -793,20 +793,28 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
             model = req_json.get("model", "web-claude")
             messages = req_json.get("messages", [])
 
-            prompt_parts = []
-            for m in messages:
-                role = m.get("role", "user")
-                c = m.get("content", "")
-                if isinstance(c, list):
-                    c = " ".join([item.get("text", "") for item in c if isinstance(item, dict)])
-                if role == "system":
-                    prompt_parts.append(f"[System Instruction]\n{c}")
-                elif role == "user":
-                    prompt_parts.append(f"[User]\n{c}")
-                elif role == "assistant":
-                    prompt_parts.append(f"[Assistant]\n{c}")
+            if model in ("web-claude", "claude"):
+                # Extract only user prompt to keep within Claude free-tier token cap
+                user_msgs = [m.get("content", "") for m in messages if m.get("role") == "user"]
+                target_prompt = user_msgs[-1] if user_msgs else (messages[-1].get("content", "") if messages else "Halo")
+                if isinstance(target_prompt, list):
+                    target_prompt = " ".join([item.get("text", "") for item in target_prompt if isinstance(item, dict)])
+                full_prompt = target_prompt
+            else:
+                prompt_parts = []
+                for m in messages:
+                    role = m.get("role", "user")
+                    c = m.get("content", "")
+                    if isinstance(c, list):
+                        c = " ".join([item.get("text", "") for item in c if isinstance(item, dict)])
+                    if role == "system":
+                        prompt_parts.append(f"[System Instruction]\n{c}")
+                    elif role == "user":
+                        prompt_parts.append(f"[User]\n{c}")
+                    elif role == "assistant":
+                        prompt_parts.append(f"[Assistant]\n{c}")
 
-            full_prompt = "\n\n".join(prompt_parts) if prompt_parts else req_json.get("prompt", "Halo!")
+                full_prompt = "\n\n".join(prompt_parts) if prompt_parts else req_json.get("prompt", "Halo!")
             log(f"[Hermes HTTP] Received chat request ({len(full_prompt)} chars) for model: {model}")
 
             try:
