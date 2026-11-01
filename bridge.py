@@ -845,12 +845,28 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                         answer = answer[:half]
 
                 images = bridge_resp.get("images", [])
+                svgs = bridge_resp.get("svgs", [])
+                scratch_dir = Path(os.path.expanduser("~/.hermes/cache/scratch"))
+                scratch_dir.mkdir(parents=True, exist_ok=True)
+                media_tags = []
+
+                # Render SVGs (Claude vector illustrations / artifacts) to high-res PNG
+                if svgs:
+                    ts = int(time.time())
+                    for idx, svg_code in enumerate(svgs):
+                        try:
+                            svg_file = scratch_dir / f"claude_{ts}_{idx}.svg"
+                            png_file = scratch_dir / f"claude_{ts}_{idx}.png"
+                            svg_file.write_text(svg_code, encoding="utf-8")
+                            res = subprocess.run(["convert", "-background", "none", "-density", "300", str(svg_file), str(png_file)], capture_output=True)
+                            if res.returncode == 0 and png_file.exists():
+                                media_tags.append(f"MEDIA:{png_file}")
+                                log(f"[Hermes HTTP] Converted Claude SVG to {png_file}")
+                        except Exception as svg_err:
+                            log(f"[Hermes HTTP] Failed to convert SVG {idx}: {svg_err}")
 
                 # Download images to local scratch and append MEDIA: tag for Telegram photo delivery
                 if images:
-                    scratch_dir = Path(os.path.expanduser("~/.hermes/cache/scratch"))
-                    scratch_dir.mkdir(parents=True, exist_ok=True)
-                    media_tags = []
                     import urllib.request
                     for idx, img_url in enumerate(images):
                         try:
@@ -868,12 +884,12 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                             log(f"[Hermes HTTP] Failed to download image {img_url}: {img_err}")
                             media_tags.append(f"Image URL: {img_url}")
 
-                    if media_tags:
-                        media_str = "\n".join(media_tags)
-                        if answer and answer.strip() not in ("", "Berikut gambar yang digenerate:"):
-                            answer = f"{answer}\n\n{media_str}"
-                        else:
-                            answer = media_str
+                if media_tags:
+                    media_str = "\n".join(media_tags)
+                    if answer and answer.strip() not in ("", "Berikut gambar yang digenerate:"):
+                        answer = f"{answer}\n\n{media_str}"
+                    else:
+                        answer = media_str
 
                 # Check if client requested streaming SSE
                 if req_json.get("stream"):

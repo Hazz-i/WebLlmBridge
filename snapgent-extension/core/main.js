@@ -4916,30 +4916,61 @@
         }
       }
 
-      // Extract final assistant turn reply and images
+      // Extract final assistant turn reply, images (img), and vector illustrations (svg)
       const finalRes = P.readAssistant ? P.readAssistant() : null;
       let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
       const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
       const images = [];
+      const svgs = [];
 
       if (lastItem) {
-        const imgElements = lastItem.querySelectorAll("img");
-        imgElements.forEach((img) => {
+        // 1. Extract standard images (ChatGPT DALL-E, etc.)
+        lastItem.querySelectorAll("img").forEach((img) => {
           const src = img.currentSrc || img.src || img.getAttribute("src");
           if (src && !src.startsWith("data:image/svg") && !src.includes("avatar") && !src.includes("profile")) {
             images.push(src);
           }
         });
+
+        // 2. Extract SVG elements inside lastItem (Claude vector illustration / artifacts)
+        const serializer = new XMLSerializer();
+        lastItem.querySelectorAll("svg").forEach((svg) => {
+          const viewBox = svg.getAttribute("viewBox") || "";
+          const isIcon = viewBox.includes("0 0 24 24") || viewBox.includes("0 0 16 16") || viewBox.includes("0 0 20 20");
+          if (!isIcon) {
+            svgs.push(serializer.serializeToString(svg));
+          }
+        });
+
+        // 3. Extract raw SVG code blocks in pre/code
+        lastItem.querySelectorAll("pre, code").forEach((c) => {
+          const m = (c.textContent || "").match(/<svg[\s\S]*?<\/svg>/i);
+          if (m) svgs.push(m[0]);
+        });
       }
 
-      log("Hermes chat complete, reply length:", replyText.length, "images:", images.length);
+      // 4. Also check iframes in page (Claude artifact preview panel)
+      document.querySelectorAll("iframe").forEach((frame) => {
+        try {
+          const doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc) {
+            const serializer = new XMLSerializer();
+            doc.querySelectorAll("svg").forEach((svg) => {
+              svgs.push(serializer.serializeToString(svg));
+            });
+          }
+        } catch (e) {}
+      });
+
+      log("Hermes chat complete, reply length:", replyText.length, "images:", images.length, "svgs:", svgs.length);
 
       chrome.runtime.sendMessage({
         type: "hermes_chat_response",
         id: req.id,
         ok: true,
-        text: replyText || (images.length > 0 ? "Berikut gambar yang digenerate:" : "(Empty response from model)"),
-        images: images
+        text: replyText || ((images.length > 0 || svgs.length > 0) ? "Berikut gambar yang digenerate:" : "(Empty response from model)"),
+        images: images,
+        svgs: svgs
       });
     } catch (err) {
       log("Hermes chat error:", err);
