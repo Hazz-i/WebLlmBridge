@@ -412,7 +412,7 @@ const ZSProvider = (() => {
   }
   const grewWithin = (ms) => _streamMax > 1 && Date.now() - _streamAt < ms;
 
-  const WEDGE_MS = 10000;
+  const WEDGE_MS = 2500;
   let _stopSince = 0;
   function genActive() {
     sampleStream();

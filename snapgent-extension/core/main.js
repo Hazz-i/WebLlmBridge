@@ -4867,7 +4867,7 @@
       let stableCount = 0;
 
       while (Date.now() - genStart < maxWait) {
-        await sleep(500);
+        await sleep(300);
         const curId = P.lastAssistantId ? P.lastAssistantId() : null;
         const curCount = P.assistantCount ? P.assistantCount() : 0;
         const isGen = P.isGenerating ? P.isGenerating() : false;
@@ -4875,18 +4875,30 @@
         // Ensure we are inspecting the NEW turn, never the old previous turn!
         const isNewTurn = (curId && curId !== baseAssistantId) || curCount > baseAssistants;
 
-        if (isNewTurn && !isGen) {
+        if (isNewTurn) {
           const res = P.readAssistant ? P.readAssistant() : null;
           const curText = (res && res.reply ? res.reply : (P.itemText && P.lastAssistant ? P.itemText(P.lastAssistant()) : "")).trim();
-          const turnItem = (res && res.item) || (P.lastAssistant ? P.lastAssistant() : null);
-          const hasImageInTurn = turnItem && (turnItem.querySelector("img:not([src*='avatar']), canvas, svg") !== null);
-
-          if (curText === lastText || hasImageInTurn) {
-            stableCount++;
-            if (stableCount >= 2) break;
+          
+          if (!isGen) {
+            if (curText && curText === lastText) {
+              stableCount++;
+              if (stableCount >= 2) break; // Settled and not generating
+            } else {
+              lastText = curText;
+              stableCount = 0;
+            }
           } else {
-            lastText = curText;
-            stableCount = 0;
+            // Even if isGen reports true (e.g. stop button stuck), if text has stabilized for 2.5 seconds, finish!
+            if (curText && curText === lastText) {
+              stableCount++;
+              if (stableCount >= 8) { // 8 * 300ms = 2.4s of unchanged text
+                log("Text stable while isGenerating still active -> finishing turn early");
+                break;
+              }
+            } else {
+              lastText = curText;
+              stableCount = 0;
+            }
           }
         }
       }
