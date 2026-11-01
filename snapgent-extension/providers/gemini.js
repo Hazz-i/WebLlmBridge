@@ -689,8 +689,7 @@ const ZSProvider = (() => {
     // Shown as a permanent, non-intrusive notice in the snapgentV3 panel.
     // Gemini drifts away from emitting tool blocks after a while in long
     // sessions - observed live, model behavior, not something the prompt fixes.
-    unstableWarning:
-      "Gemini may stop using tools in long sessions. Remind it to use the commands, or start a new chat",
+    unstableWarning: null,
     init({ diag: d } = {}) { if (d) diag = d; },
     // turns
     allItems, isUserItem, isAssistantItem, itemText, classifyText,

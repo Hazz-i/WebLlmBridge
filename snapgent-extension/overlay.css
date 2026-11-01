@@ -1,3 +1,11 @@
+/* Hide legacy status text, action button, and unstable badges completely */
+#zs-state,
+#zs-action,
+#zs-stop,
+#zs-unstable {
+  display: none !important;
+}
+
 /* Orange online indicator beside Hermes Bridge */
 .zs-online-tag {
   color: #f97316 !important;
@@ -80,6 +88,7 @@ html.zs-light #zs-bar.zs-bar-inside {
   backdrop-filter: none !important;
   padding: 0 4px !important;
   margin: 0 0 6px auto !important;
+  align-self: flex-end !important;
   display: flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
@@ -87,7 +96,7 @@ html.zs-light #zs-bar.zs-bar-inside {
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 8px !important;
-  width: 100% !important;
+  width: auto !important;
   height: 28px !important;
   max-width: 100% !important;
   box-sizing: border-box !important;

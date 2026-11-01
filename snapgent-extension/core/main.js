@@ -2809,7 +2809,7 @@
         </div>
         <div id="zs-menu" hidden></div>
         <div id="zs-target-menu" hidden></div>
-        ${P.unstableWarning ? `<button id="zs-unstable" aria-label="Provider may be unstable" hidden>⚠ unstable</button>` : ""}
+        
       `;
       document.documentElement.appendChild(root);
       bar = root.querySelector("#zs-bar");

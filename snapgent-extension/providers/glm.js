@@ -574,10 +574,7 @@ const ZSProvider = (() => {
     // error page instead of JSON, so the reply shows "No response, please try
     // again later" (a z.ai server issue, NOT the extension). Prefer the GLM-5.2
     // model and retry off-peak.
-    unstableWarning:
-      "GLM (z.ai) can be unstable: when its servers are busy a turn fails with " +
-      "\"No response, please try again later\" - that's a z.ai issue, not the extension. " +
-      "Prefer the GLM-5.2 model and retry in a moment (or off-peak) if it happens.",
+    unstableWarning: null,
     // Svelte re-renders the reply's markdown subtree on every update, wiping any
     // chip placed inside it. Anchor chips at the turn-element level instead
     // (redirected into the reply column by chipAnchor).
