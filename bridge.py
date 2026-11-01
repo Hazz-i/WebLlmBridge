@@ -928,9 +928,17 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                             if img_url.startswith("data:image/"):
                                 # base64 data url from Claude Artifacts / Canvas / Blob
                                 header, b64_str = img_url.split(",", 1)
-                                fpath.write_bytes(base64.b64decode(b64_str))
+                                decoded_bytes = base64.b64decode(b64_str)
+                                if "svg" in header.lower():
+                                    try:
+                                        import cairosvg
+                                        cairosvg.svg2png(bytestring=decoded_bytes, write_to=str(fpath), output_width=1024)
+                                    except Exception:
+                                        fpath.write_bytes(decoded_bytes)
+                                else:
+                                    fpath.write_bytes(decoded_bytes)
                                 media_tags.append(f"MEDIA:{fpath}")
-                                log(f"[Hermes HTTP] Decoded base64 artifact image ({len(b64_str)} b64 chars) to {fpath}")
+                                log(f"[Hermes HTTP] Decoded and saved real artifact image ({len(b64_str)} b64 chars) to {fpath}")
                             elif img_url.startswith("http://") or img_url.startswith("https://"):
                                 req = urllib.request.Request(
                                     img_url,

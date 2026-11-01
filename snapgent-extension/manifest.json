@@ -51,6 +51,16 @@
   "content_scripts": [
     {
       "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "providers/claude-intercept.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "https://chat.deepseek.com/*"
       ],
       "js": [

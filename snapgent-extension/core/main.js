@@ -97,7 +97,19 @@
     { name: "Mistral", url: "https://chat.mistral.ai/code" },
   ];
   const TARGET_STORAGE_KEY = "zsSelectedMcpTarget";
-  let selectedTargetId = "hermes";
+
+  // Buffer of blobs captured via URL.createObjectURL or fetch
+  const capturedBlobs = [];
+  window.addEventListener("message", (ev) => {
+    if (ev.data && ev.data.type === "HERMES_BLOB_CAPTURED" && ev.data.dataUrl) {
+      log("Captured real file blob via interceptor:", ev.data.mime, "size:", ev.data.size);
+      if (!capturedBlobs.includes(ev.data.dataUrl)) {
+        capturedBlobs.push(ev.data.dataUrl);
+      }
+    }
+  });
+
+    let selectedTargetId = "hermes";
   try {
     chrome.storage.local.get(TARGET_STORAGE_KEY, (result) => {
       const saved = result && result[TARGET_STORAGE_KEY];
@@ -4868,15 +4880,35 @@
         }
       }
 
-      // Give React / Artifact drawer 1.5s to fully mount into DOM
-      await sleep(1500);
+      // Give React / Artifact drawer 1s to fully mount into DOM
+      await sleep(1000);
+
+      // Programmatically click any file download button in the response card to trigger real blob download
+      const downloadCandidateBtns = [
+        ...(lastItem ? lastItem.querySelectorAll('button, a[download], [role="button"]') : []),
+        ...document.querySelectorAll('button[aria-label*="download" i], button[title*="download" i], [data-testid*="download" i]')
+      ];
+      for (const btn of downloadCandidateBtns) {
+        try {
+          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+          const title = (btn.getAttribute("title") || "").toLowerCase();
+          const txt = (btn.textContent || "").toLowerCase();
+          const isDownload = aria.includes("download") || title.includes("download") || txt.includes("download") || btn.hasAttribute("download");
+          if (isDownload) {
+            log("Clicking response download button to trigger blob extraction:", aria || title || txt);
+            btn.click();
+          }
+        } catch (e) {}
+      }
+      await sleep(800);
 
       // Extract final assistant turn reply, images (img/canvas/blob), and vector illustrations (svg)
       const finalRes = P.readAssistant ? P.readAssistant() : null;
       let replyText = (finalRes && finalRes.reply ? finalRes.reply : lastText).trim();
       const lastItem = (finalRes && finalRes.item) ? finalRes.item : (P.lastAssistant ? P.lastAssistant() : null);
-      const images = [];
+      const images = [...capturedBlobs];
       const svgs = [];
+      capturedBlobs.length = 0; // reset for next request
 
       // Helper to convert blob: URLs or canvas to data:image/png;base64 URLs
       const toDataUrl = async (url) => {
