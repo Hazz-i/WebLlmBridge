@@ -4970,6 +4970,25 @@
         }
       }
 
+      // Global fallback: any large img in the page (ChatGPT DALL-E renders outside message bubbles)
+      if (images.length === 0) {
+        const allImgs = [...document.querySelectorAll("img")].reverse();
+        for (const img of allImgs) {
+          const src = img.currentSrc || img.src || img.getAttribute("src") || "";
+          if (!src) continue;
+          const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("/icon");
+          if (isAvatar) continue;
+          const big = (img.naturalWidth || 0) >= 200 || (img.width || 0) >= 200 || src.startsWith("blob:") || src.includes("oaiusercontent");
+          if (!big) continue;
+          const resolved = await toDataUrl(src);
+          if (resolved && !images.includes(resolved)) {
+            log("Global img fallback captured:", src.slice(0, 80), img.naturalWidth, "x", img.naturalHeight);
+            images.push(resolved);
+            break;
+          }
+        }
+      }
+
       // 2. Scan Artifact panels for Claude
       if (images.length === 0) {
         const artifactImgs = document.querySelectorAll('[data-testid*="artifact"] img, [class*="artifact"] img, aside img');
