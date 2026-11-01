@@ -4937,7 +4937,7 @@
         return url;
       };
 
-      // 1. Scan images inside lastItem (ChatGPT DALL-E generated images, inline pictures)
+      // 1. Scan images inside lastItem, or check recent assistant turns for generated images
       const turnImgs = lastItem ? lastItem.querySelectorAll("img") : [];
       for (const img of turnImgs) {
         const src = img.currentSrc || img.src || img.getAttribute("src") || "";
@@ -4947,6 +4947,26 @@
           if (resolved && !images.includes(resolved)) {
             images.push(resolved);
           }
+        }
+      }
+
+      // If no image in immediate turn, scan recent assistant turns (e.g. DALL-E image generated right before)
+      if (images.length === 0) {
+        const assistantTurns = [...document.querySelectorAll('div[data-message-author-role="assistant"], div[data-is-streaming="false"]')].reverse();
+        for (const item of assistantTurns) {
+          const imgs = item.querySelectorAll("img");
+          for (const img of imgs) {
+            const src = img.currentSrc || img.src || img.getAttribute("src") || "";
+            const isAvatar = src.includes("avatar") || src.includes("profile") || src.includes("gravatar") || src.includes("icon");
+            if (src && !isAvatar && (img.naturalWidth >= 100 || img.width >= 100 || src.includes("oaiusercontent") || src.includes("blob:"))) {
+              const resolved = await toDataUrl(src);
+              if (resolved && !images.includes(resolved)) {
+                images.push(resolved);
+                break;
+              }
+            }
+          }
+          if (images.length > 0) break;
         }
       }
 

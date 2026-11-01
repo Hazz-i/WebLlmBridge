@@ -885,7 +885,8 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                 log(f"[Hermes HTTP] Received from extension: {len(images)} image(s), {len(svgs)} svg(s)")
                 dtags = bridge_resp.get("debug_tags", [])
                 if dtags:
-                    log(f"[Hermes HTTP] DOM debug tags ({len(dtags)}): " + " | ".join(dtags[:30]))
+                    img_tags = [t for t in dtags if t.startswith("img:")]
+                    log(f"[Hermes HTTP] DOM debug tags: total={len(dtags)}, imgs={len(img_tags)}: " + " | ".join(img_tags[:10]))
                 scratch_dir = Path(os.path.expanduser("~/.hermes/cache/scratch"))
                 scratch_dir.mkdir(parents=True, exist_ok=True)
                 media_tags = []
