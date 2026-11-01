@@ -836,6 +836,13 @@ async def _handle_http_client(reader: asyncio.StreamReader, writer: asyncio.Stre
                 if answer.startswith("Claude responded:"):
                     answer = answer[len("Claude responded:"):].strip()
                 answer = re.sub(r'[\ue000-\uf8ff]|just now.*$', '', answer).strip()
+                
+                # Deduplicate doubled screen-reader text (e.g. "Paris.Paris." -> "Paris.")
+                n = len(answer)
+                if n >= 2 and n % 2 == 0:
+                    half = n // 2
+                    if answer[:half] == answer[half:]:
+                        answer = answer[:half]
 
                 images = bridge_resp.get("images", [])
 
