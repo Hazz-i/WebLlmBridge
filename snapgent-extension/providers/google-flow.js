@@ -9,8 +9,8 @@ const ZSProvider = (() => {
   let lockedEditor = null;
 
   const S = {
-    user: '[data-message-author-role="user"], [data-testid*="user-message"], .user-message',
-    assistant: '[data-message-author-role="assistant"], [data-testid*="assistant-message"], .assistant-message, [data-testid*="session-message"]',
+    user: '[data-message-author-role="user"], [data-testid*="user-message"], .user-message, [class*="UserMessage"], [class*="user-bubble"]',
+    assistant: '[data-message-author-role="assistant"], [data-testid*="assistant-message"], .assistant-message, [data-testid*="session-message"], [class*="ModelMessage"], [class*="AssistantMessage"], [class*="bot-message"]',
     editor: [
       'textarea[placeholder*="create" i]',
       'textarea[placeholder*="Ask" i]',
@@ -59,7 +59,15 @@ const ZSProvider = (() => {
   };
 
   const allItems = () => {
-    return [...document.querySelectorAll(`${S.user}, ${S.assistant}`)].filter(el => !el.closest("#zs-root"));
+    let items = [...document.querySelectorAll(`${S.user}, ${S.assistant}`)].filter(el => !el.closest("#zs-root"));
+    if (items.length === 0) {
+      // Fallback: look inside the session / chat drawer for message containers
+      const drawer = document.querySelector('aside, [role="complementary"], [class*="session"], [class*="chat"]');
+      if (drawer) {
+        items = [...drawer.querySelectorAll('div[class*="message"], div[class*="bubble"], p')].filter(el => !el.closest("#zs-root") && (el.innerText || "").trim().length > 0);
+      }
+    }
+    return items;
   };
 
   const isAssistantItem = (item) => !!item && (item.matches(S.assistant) || !!item.querySelector(S.assistant));
