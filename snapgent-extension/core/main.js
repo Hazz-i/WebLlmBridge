@@ -2805,6 +2805,7 @@
           <button id="zs-stop" hidden>■ Stop</button>
           <div class="zs-target-wrap" title="Choose which MCP server receives commands">
             <select id="zs-target" aria-label="MCP target" hidden tabindex="-1">
+              <option value="hermes">Hermes Agent</option>
               <option value="vscode">VS Code</option>
               <option value="roblox">Roblox Studio</option>
             </select>
@@ -2982,6 +2983,7 @@
     }
 
     function getTargetName(id = selectedTargetId) {
+      if (id === "hermes") return "Hermes Agent";
       if (id === "roblox") return "Roblox Studio";
       if (id === "vscode") return "VS Code";
       if (id === "effectcraft") return "EffectCraft";
@@ -2994,11 +2996,12 @@
     function setTarget(id = selectedTargetId) {
       if (!targetSelect) return;
       const options = [
+        { id: "hermes", name: "Hermes Agent" },
         { id: "vscode", name: "VS Code" },
         { id: "roblox", name: "Roblox Studio" },
         { id: "effectcraft", name: "EffectCraft" },
         ...mergedMcpServers()
-          .filter((server) => !["vscode", "roblox", "effectcraft"].includes(server.id))
+          .filter((server) => !["hermes", "vscode", "roblox", "effectcraft"].includes(server.id))
           .map((server) => ({ id: server.id, name: getTargetName(server.id) })),
       ].filter((option) => isMcpEnabled(option.id));
       if (!options.some((option) => option.id === id)) {
