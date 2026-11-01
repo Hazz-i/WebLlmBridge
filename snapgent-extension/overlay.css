@@ -59,11 +59,13 @@
   box-shadow: none !important;
 }
 
-/* Clean, natural Hermes Bridge bar (aligned right, no background, no border) */
+/* Clean, natural Hermes Bridge bar: STRICT 1 FLAT ROW, no stacking, no wrapping */
 #zs-bar,
 #zs-bar.zs-bar-inline,
 #zs-bar.zs-bar-anchored,
 #zs-bar.zs-bar-inside,
+#zs-bar.zs-prov-chatgpt,
+.zs-site-chatgpt #zs-bar,
 html.zs-light #zs-bar,
 html.zs-light #zs-bar.zs-bar-inline,
 html.zs-light #zs-bar.zs-bar-anchored,
@@ -72,14 +74,24 @@ html.zs-light #zs-bar.zs-bar-inside {
   border: none !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
-  padding: 4px 0 6px !important;
-  margin: 0 0 4px auto !important;
-  display: flex !important;
-  justify-content: flex-end !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
   align-items: center !important;
+  justify-content: flex-start !important;
   gap: 8px !important;
   width: auto !important;
+  height: 32px !important;
   max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#zs-bar * {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
 }
 
 .zs-bridge-label {
@@ -549,7 +561,7 @@ html.zs-light #zs-target-menu {
 
 @media (max-width: 560px) {
   #zs-bar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap !important;
     gap: 6px;
     padding: 6px 8px;
   }
