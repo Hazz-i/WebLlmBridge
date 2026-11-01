@@ -4913,18 +4913,29 @@
       // Read final assistant turn
       const lastItem = P.lastAssistant ? P.lastAssistant() : null;
       let replyText = "";
+      const images = [];
       if (lastItem) {
         if (P.readAssistant) replyText = P.readAssistant(lastItem);
         if (!replyText && P.itemText) replyText = P.itemText(lastItem);
+
+        // Extract any generated images (DALL-E in ChatGPT / etc.)
+        const imgElements = lastItem.querySelectorAll("img");
+        imgElements.forEach((img) => {
+          const src = img.currentSrc || img.src || img.getAttribute("src");
+          if (src && !src.startsWith("data:image/svg") && !src.includes("avatar") && !src.includes("profile")) {
+            images.push(src);
+          }
+        });
       }
 
-      log("Hermes chat complete, reply length:", (replyText || "").length);
+      log("Hermes chat complete, reply length:", (replyText || "").length, "images:", images.length);
 
       chrome.runtime.sendMessage({
         type: "hermes_chat_response",
         id: req.id,
         ok: true,
-        text: replyText || "(Empty response from model)"
+        text: replyText || (images.length > 0 ? "Berikut gambar yang digenerate:" : "(Empty response from model)"),
+        images: images
       });
     } catch (err) {
       log("Hermes chat error:", err);

@@ -128,6 +128,16 @@ Endpoint `/v1/models` menyediakan pilihan model berikut:
 
 ---
 
-## 06. Lisensi
+## 06. Dukungan Image Generation (DALL-E ChatGPT ke Foto Telegram)
+
+Jika lu meminta ChatGPT web membuat gambar (misal: "gambarkan pemandangan cyberpunk"):
+1. Ekstensi browser otomatis mendeteksi elemen `<img>` hasil render DALL-E di chat web.
+2. Link gambar dikirim ke `bridge.py`.
+3. Bridge mendownload gambar resolusi penuh ke cache lokal dan menyematkan format tag `MEDIA:/path/to/image.png`.
+4. Gateway Hermes membaca tag tersebut dan Telegram otomatis menampilkannya sebagai **Foto Native** di chat lu.
+
+---
+
+## 07. Lisensi
 
 GPL-3.0 License. Lihat file [LICENSE](LICENSE) untuk detail lisensi.
